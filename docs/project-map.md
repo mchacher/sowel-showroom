@@ -31,8 +31,8 @@ Settled in discussion; the phase specs do not reopen them.
 | Reset cadence            | **Nightly at 04:00**, as a safety net                                                                               | Rate limits + short overrides + a reconverging simulation make the reset rarely necessary. Adjust after observation.                                                                  |
 | Energy history           | **No backfill.** The reset wipes SQLite and **keeps the InfluxDB volume**                                           | A plugin cannot write history, and replaying weeks through the pipeline is heavy. Real-time accrual is consistent with what the visitor sees; after a week the Energy pages are full. |
 | Simulated time           | **Real time**, never accelerated                                                                                    | A visitor at 03:00 sees a sleeping house. History stays coherent.                                                                                                                     |
-| The 3D house             | A **generic application** in its own repo, not a page of the product UI and not a piece of the demo infrastructure  | It reads a plan and a mapping and talks to any Sowel instance. The showroom is one of its deployments; a user's own home is another, later.                                            |
-| 3D construction          | **Procedural** walls from a plan JSON + **CC0 low-poly furniture** (Kenney, Quaternius, Poly Pizza) + Sowel palette | No Blender skill required, everything data-driven, stylised rather than pseudo-realistic. The prototype in `sowel-house-3d/prototype/` validated the look.                             |
+| The 3D house             | A **generic application** in its own repo, not a page of the product UI and not a piece of the demo infrastructure  | It reads a plan and a mapping and talks to any Sowel instance. The showroom is one of its deployments; a user's own home is another, later.                                           |
+| 3D construction          | **Procedural** walls from a plan JSON + **CC0 low-poly furniture** (Kenney, Quaternius, Poly Pizza) + Sowel palette | No Blender skill required, everything data-driven, stylised rather than pseudo-realistic. The prototype in `sowel-house-3d/prototype/` validated the look.                            |
 | Solar panels             | On the roof, so the house gets a roof — **later phase**                                                             | Requested; not needed to validate the rest.                                                                                                                                           |
 
 ## The pieces and their contract
@@ -122,14 +122,14 @@ A static web app: Three.js, no backend of its own in v1. Generic: it renders _a_
 
 ## Multi-visitor rules
 
-| Risk                                    | Rule                                                                      |
-| --------------------------------------- | ------------------------------------------------------------------------- |
-| Lamps flicker under ten hands           | Per-target debounce in the simulator, per-IP quota at the proxy           |
-| Occupants get dragged around            | Visitors never move the household; they get a ghost of their own          |
-| Manual overrides pile up                | Recipe timeouts are short in the demo fixture; agenda reconverges         |
-| Nobody understands why it moved         | Journal from the audit log, visitor count in the 3D app                   |
-| A script hammers the API                | Cloudflare per IP, proxy quota, nightly reset                             |
-| The whole thing turns chaotic anyway    | Fallback, not v1: one pilot at a time, two-minute slots, others watch     |
+| Risk                                 | Rule                                                                  |
+| ------------------------------------ | --------------------------------------------------------------------- |
+| Lamps flicker under ten hands        | Per-target debounce in the simulator, per-IP quota at the proxy       |
+| Occupants get dragged around         | Visitors never move the household; they get a ghost of their own      |
+| Manual overrides pile up             | Recipe timeouts are short in the demo fixture; agenda reconverges     |
+| Nobody understands why it moved      | Journal from the audit log, visitor count in the 3D app               |
+| A script hammers the API             | Cloudflare per IP, proxy quota, nightly reset                         |
+| The whole thing turns chaotic anyway | Fallback, not v1: one pilot at a time, two-minute slots, others watch |
 
 ## Out of scope (recorded so it is not lost)
 

@@ -1,0 +1,29 @@
+{
+  "name": "sowel-showroom",
+  "version": "0.0.0",
+  "description": "Infrastructure for the public Sowel demo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "format": "prettier --write \"**/*.{md,yml,yaml,json}\"",
+    "format:check": "prettier --check \"**/*.{md,yml,yaml,json}\"",
+    "lint:sh": "bash scripts/check-shell.sh",
+    "lint:compose": "bash scripts/check-compose.sh",
+    "validate": "npm run format:check && npm run lint:sh && npm run lint:compose && bash scripts/check-specs-complete.sh",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{md,yml,yaml,json}": [
+      "prettier --write"
+    ],
+    "scripts/*.sh": [
+      "bash scripts/check-shell.sh"
+    ]
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^17.4.1",
+    "prettier": "^3.9.6"
+  },
+  "license": "AGPL-3.0"
+}

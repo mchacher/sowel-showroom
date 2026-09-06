@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  # NOTE: the `name:` below is the check name the `main-protection` ruleset
+  # requires. Renaming it silently stops it from gating merges.
+  check:
+    name: Infra (format, shellcheck, compose, specs)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # need main's history for the specs merge-base diff
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: sudo apt-get update -q && sudo apt-get install -y -q shellcheck
+      - run: npm ci
+      - run: npm run validate
