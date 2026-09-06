@@ -35,6 +35,21 @@ Settled in discussion; the phase specs do not reopen them.
 | 3D construction          | **Procedural** walls from a plan JSON + **CC0 low-poly furniture** (Kenney, Quaternius, Poly Pizza) + Sowel palette | No Blender skill required, everything data-driven, stylised rather than pseudo-realistic. The prototype in `sowel-house-3d/prototype/` validated the look.                            |
 | Solar panels             | On the roof, so the house gets a roof — **later phase**                                                             | Requested; not needed to validate the rest.                                                                                                                                           |
 
+## Rejected alternatives (so they are not re-litigated)
+
+Each of these was considered and turned down. Reopening one is allowed; doing it
+without knowing it was already weighed is not.
+
+| Rejected                                                       | Why                                                                                                                                                                                                        |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Mirroring production over MQTT into the demo                   | Authentic data, but read-only, and it publishes a family's presence patterns to the internet. A hybrid (real PV and weather, simulated rooms) stays possible if the PV story ever needs it.                |
+| Replaying a week of InfluxDB history shifted to "now"          | Realistic curves, more work than the simulator, and less interactive for the visitor.                                                                                                                      |
+| A demo mode inside the core (`SOWEL_DEMO_MODE`)                | The first draft put the guest session, the allowlist, the quotas and the banner in the product. Every one of them is doable in the plugin, the proxy or the 3D app. The product stays stock.               |
+| One simulated world per visitor                                | Loses "one Sowel", and the host carries N simulations. A shared world is also a better demo: things move because someone else is there.                                                                    |
+| A pilot queue (one visitor drives, others watch)               | Kept as the fallback if the shared world turns chaotic despite debounce and quotas. Not v1: it makes most visitors spectators.                                                                             |
+| Blender-authored geometry                                      | Needs a skill the project does not have, and a rebuild for every plan change. Procedural walls plus CC0 furniture is data-driven and was validated by the prototype.                                       |
+| Names: `sowel-maquette`, `sowel-house-twin`, `sowel-dollhouse` | "Maquette" was disliked; "twin" oversells (digital-twin means a synchronised model of a real building, and the demo house is fictional); "dollhouse" reads as a toy. `sowel-house-3d` is plain and honest. |
+
 ## The pieces and their contract
 
 ```
@@ -152,6 +167,24 @@ A static web app: Three.js, no backend of its own in v1. Generic: it renders _a_
 
 Each phase is one spec, one branch, one PR in its repo, testable on its own. Phases 1–2 do not depend on the 3D work; the 3D depends on them only through the API.
 
+**This table is the cross-repository status.** It is the only place where the
+whole project is visible at once, so it is updated at two moments, both written
+into each repository's feature skill: to 🚧 when a phase's spec is written, to ✅
+when its last pull request merges. Each repository's own `docs/specs-index.md`
+carries the detail below a phase, and is CI-gated there.
+
+| Phase | Repository               | What                                                                                 | Status   |
+| ----- | ------------------------ | ------------------------------------------------------------------------------------ | -------- |
+| 0     | `sowel` (core)           | Standard users activate modes ([#912](https://github.com/mchacher/sowel/issues/912)) | 📝 Open  |
+| 1     | `sowel-plugin-simulator` | World model, devices, orders, `sim.*`, fixture remap                                 | 📝 To do |
+| 2     | `sowel-showroom`         | Compose, proxy, reset, demo fixture, landing page                                    | 📝 To do |
+| 3     | `sowel-house-3d`         | Plan, mapping, REST + WS, read-only scene                                            | 📝 To do |
+| 4     | `sowel-house-3d`         | Clicks, own ghost, journal, visitor count, mobile                                    | 📝 To do |
+| 5     | `sowel-showroom`         | VM, tunnel, `demo.sowel.org`, links, reset monitoring                                | 📝 To do |
+| 6     | all                      | Roof and solar panels, furniture, faults, shared ghosts                              | 📝 To do |
+
+Status: 📝 To do · 🚧 In progress · ✅ Done
+
 ```
  Phase 0 ── core: #912 standard users activate modes ──────────────────────┐
             (mchacher/sowel — an ordinary product issue)                    │
@@ -194,3 +227,11 @@ Rough weight: phases 1, 3 and 4 carry most of the work; 2 and 5 are small; 0 is 
 ## Acceptance for this document
 
 Done when every phase above has its own spec referencing it, and the decision table has not been contradicted by any of them without an explicit amendment here.
+
+**What keeps this document true.** Three things, none of them good intentions:
+
+- Each repository's `scripts/check-specs-index.sh` fails a pull request that adds a spec folder without a row in that repository's index. CI-enforced.
+- Each repository's feature skill requires the phase status here to move at two named moments, and requires a contradicting spec to amend the decision table in the same pull request.
+- The Sowel core's `CLAUDE.md` names the three repositories and links here, so an agent that starts in the core finds the project instead of rebuilding it.
+
+The core learned the underlying lesson the expensive way: its release notes never drifted because a workflow fails on a missing anchor, while its documentation drifted for three months because nothing failed. Same authors, same pace; the difference is the gate.
