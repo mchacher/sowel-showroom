@@ -22,6 +22,7 @@ The core (`mchacher/sowel`) stays **stock**: the showroom runs the published ima
 | Sowel's generic deployment guide             | `mchacher/sowel`: `docs/technical/deployment.md`                                               |
 | The role gate the guest account relies on    | `mchacher/sowel`: spec 131, `docs/technical/api-reference.md`                                  |
 | The anonymised fixture the demo derives from | `mchacher/sowel`: `docs/fixtures/README.md`, `scripts/doc/build-fixtures.py`                   |
+| Every feature specified here                 | [docs/specs-index.md](docs/specs-index.md) — one row per spec, CI-gated                        |
 | Feature history in this repo                 | `specs/NNN-name/{spec,architecture,plan}.md`                                                   |
 
 The core repo is expected as a sibling directory (`../sowel`).
@@ -50,7 +51,8 @@ npm run validate        # format:check, shellcheck, compose validation, specs co
 - Feature branches: `feat/`, `fix/`, `refactor/`, `docs/`. Main is protected (PR required, linear history, CI green).
 - Conventional commits. Scopes: `compose`, `proxy`, `reset`, `fixture`, `docs`, `ci`.
 - **Never merge a PR without explicit user approval** ("oui", "merge", "go").
-- Every new `specs/NNN-name/` folder needs `spec.md`, `architecture.md`, `plan.md` (CI gate).
+- Every new `specs/NNN-name/` folder needs `spec.md`, `architecture.md`, `plan.md` **and a row in `docs/specs-index.md`** (two CI gates).
+- **The phase table in [docs/project-map.md](docs/project-map.md) is the cross-repository status**, and this repo hosts it. Move a phase to 🚧 when its spec is written, to ✅ when its last pull request merges — including phases owned by the two other repos, which open a one-line pull request here.
 - No version tags here: the showroom pins the versions of the core image, the plugin and the 3D app in its compose.
 
 ## Skills
