@@ -173,17 +173,31 @@ into each repository's feature skill: to 🚧 when a phase's spec is written, to
 when its last pull request merges. Each repository's own `docs/specs-index.md`
 carries the detail below a phase, and is CI-gated there.
 
-| Phase | Repository               | What                                                                                 | Status   |
-| ----- | ------------------------ | ------------------------------------------------------------------------------------ | -------- |
-| 0     | `sowel` (core)           | Standard users activate modes ([#912](https://github.com/mchacher/sowel/issues/912)) | 📝 Open  |
-| 1     | `sowel-plugin-simulator` | World model, devices, orders, `sim.*`, fixture remap                                 | 📝 To do |
-| 2     | `sowel-showroom`         | Compose, proxy, reset, demo fixture, landing page                                    | 📝 To do |
-| 3     | `sowel-house-3d`         | Plan, mapping, REST + WS, read-only scene                                            | 📝 To do |
-| 4     | `sowel-house-3d`         | Clicks, own ghost, journal, visitor count, mobile                                    | 📝 To do |
-| 5     | `sowel-showroom`         | VM, tunnel, `demo.sowel.org`, links, reset monitoring                                | 📝 To do |
-| 6     | all                      | Roof and solar panels, furniture, faults, shared ghosts                              | 📝 To do |
+| Phase | Repository               | What                                                                                                                                                | Status   |
+| ----- | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| 0     | `sowel` (core)           | Standard users activate modes ([#912](https://github.com/mchacher/sowel/issues/912), shipped in [#916](https://github.com/mchacher/sowel/pull/916)) | ✅ Done  |
+| 1     | `sowel-plugin-simulator` | World model, devices, orders, `sim.*`, fixture remap                                                                                                | 📝 To do |
+| 2     | `sowel-showroom`         | Compose, proxy, reset, demo fixture, landing page                                                                                                   | 📝 To do |
+| 3     | `sowel-house-3d`         | Plan, mapping, REST + WS, read-only scene                                                                                                           | 📝 To do |
+| 4     | `sowel-house-3d`         | Clicks, own ghost, journal, visitor count, mobile                                                                                                   | 📝 To do |
+| 5     | `sowel-showroom`         | VM, tunnel, `demo.sowel.org`, links, reset monitoring                                                                                               | 📝 To do |
+| 6     | all                      | Roof and solar panels, furniture, faults, shared ghosts                                                                                             | 📝 To do |
 
 Status: 📝 To do · 🚧 In progress · ✅ Done
+
+**Phase 0, closed 2026-09-06.** A `standard` user activates, deactivates and
+applies a mode; defining what a mode _is_ stays admin-only. It carried one
+decision the review forced into the open, recorded in the spec 131 amendment:
+activating a mode is **not** a pure actuation. A mode's impacts may include
+`recipe_toggle` and `recipe_params`, which durably enable, disable or
+re-parameterise a recipe — writes a standard user is refused directly, and that
+deactivating the mode does not undo. It is kept because an admin authors the
+impacts (the visitor chooses _when_, never _what_), and because the calendar and
+a physical button already did exactly this with no role attached at all.
+
+For the showroom that means the guest gets a mode switch and cannot reach
+anything that defines a mode. No demo-only exception was needed, which was the
+point of routing this through the product rather than around it.
 
 ```
  Phase 0 ── core: #912 standard users activate modes ──────────────────────┐
