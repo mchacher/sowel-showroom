@@ -90,7 +90,7 @@ An integration plugin like any other: `createPlugin(deps)`, registry entry with 
 
 **World model** (deterministic given the clock; real-time):
 
-- **Occupants** — a small household (two adults, one or two children) with weekday and weekend agendas, small randomness, and a position that is a zone. Leaving and returning goes through the entrance (door contact opens). Each occupant is a device: `zone` (enum of zone names + `away`), `present` (boolean).
+- **Occupants** — a small household (two adults, one or two children) with weekday and weekend agendas, small randomness, and a position that is a zone. Leaving and returning goes through the entrance (door contact opens). Each occupant is a device: `zone` (enum of zone names + `away`), `present` (boolean) — published for the 3D application and for debugging, under `generic`. **Presence reaches Sowel through the motion sensors, not through those devices**: an occupant is not in a zone, it moves between them, so it is not something a person binds to an equipment. What a person binds is a PIR in a room, and that PIR fires because an occupant is in it (simulator spec 001, FR7).
 - **Environment** — sun elevation and azimuth (from `home.latitude/longitude`, which a plugin may read), outdoor temperature with a seasonal baseline and a diurnal cycle, weather state (clear, cloudy, rain) that modulates PV and temperature, humidity spike in the bathroom after the morning shower.
 - **Thermal** — first-order model per room: setpoint from the heating equipment's orders, loss towards outdoor, solar gain when shutters are open and the sun faces the window. Presence thermostats have something to regulate.
 - **Energy** — PV = f(sun elevation, clouds) with a nominal peak; base load; appliances triggered by the agenda (cooking at 19:00, dishwasher after, laundry on Saturday); heat pump draw from the thermal model; controllable flexible loads (water heater, pool pump) that the capacity arbiter (spec 140) can actually allocate surplus to. Grid = load − PV, signed.
@@ -173,15 +173,15 @@ into each repository's feature skill: to 🚧 when a phase's spec is written, to
 when its last pull request merges. Each repository's own `docs/specs-index.md`
 carries the detail below a phase, and is CI-gated there.
 
-| Phase | Repository               | What                                                                                                                                                | Status   |
-| ----- | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
-| 0     | `sowel` (core)           | Standard users activate modes ([#912](https://github.com/mchacher/sowel/issues/912), shipped in [#916](https://github.com/mchacher/sowel/pull/916)) | ✅ Done  |
-| 1     | `sowel-plugin-simulator` | World model, devices, orders, `sim.*`, fixture remap                                                                                                | 📝 To do |
-| 2     | `sowel-showroom`         | Compose, proxy, reset, demo fixture, landing page                                                                                                   | 📝 To do |
-| 3     | `sowel-house-3d`         | Plan, mapping, REST + WS, read-only scene                                                                                                           | 📝 To do |
-| 4     | `sowel-house-3d`         | Clicks, own ghost, journal, visitor count, mobile                                                                                                   | 📝 To do |
-| 5     | `sowel-showroom`         | VM, tunnel, `demo.sowel.org`, links, reset monitoring                                                                                               | 📝 To do |
-| 6     | all                      | Roof and solar panels, furniture, faults, shared ghosts                                                                                             | 📝 To do |
+| Phase | Repository               | What                                                                                                                                                                                                                 | Status         |
+| ----- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| 0     | `sowel` (core)           | Standard users activate modes ([#912](https://github.com/mchacher/sowel/issues/912), shipped in [#916](https://github.com/mchacher/sowel/pull/916))                                                                  | ✅ Done        |
+| 1     | `sowel-plugin-simulator` | World model, devices, orders, `sim.*`, fixture remap — three specs: [001 the house that lives](https://github.com/mchacher/sowel-plugin-simulator/tree/main/specs/001-world-model) 🚧, 002 orders, 003 fixture remap | 🚧 In progress |
+| 2     | `sowel-showroom`         | Compose, proxy, reset, demo fixture, landing page                                                                                                                                                                    | 📝 To do       |
+| 3     | `sowel-house-3d`         | Plan, mapping, REST + WS, read-only scene                                                                                                                                                                            | 📝 To do       |
+| 4     | `sowel-house-3d`         | Clicks, own ghost, journal, visitor count, mobile                                                                                                                                                                    | 📝 To do       |
+| 5     | `sowel-showroom`         | VM, tunnel, `demo.sowel.org`, links, reset monitoring                                                                                                                                                                | 📝 To do       |
+| 6     | all                      | Roof and solar panels, furniture, faults, shared ghosts                                                                                                                                                              | 📝 To do       |
 
 Status: 📝 To do · 🚧 In progress · ✅ Done
 
