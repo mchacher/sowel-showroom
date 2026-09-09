@@ -127,6 +127,30 @@ A static web app: Three.js, no backend of its own in v1. Generic: it renders _a_
 - **Visitors** — v1: each visitor sees their own ghost and only the _effects_ of the others (LEDs, lamps, journal, count). Ghosts visible to everyone need a realtime channel Sowel does not give a plugin: v2, with a small WebSocket relay next to the app.
 - **Prototype** — `sowel-house-3d/prototype/maison-temoin.html` is the throwaway that validated the look (seven rooms, day cycle, weather, three occupants on an agenda, clickable lamps/shutters/floors, a fake motion-light for narration). It is self-contained and has no link to Sowel; keep it as the visual reference, do not grow it.
 
+### How the 3D application actually calls a simulation order
+
+Established on a stock Sowel 1.68.0 while building simulator spec 002, because it
+changes what the 3D application has to know.
+
+**Sowel has no device-level order route.** `POST /api/v1/devices/:id/...` dispatches
+nothing; the only path that reaches a plugin's `executeOrder` is
+`POST /api/v1/equipments/:id/orders/:alias`. So a `sim.*` order is reachable only
+through an **equipment order binding** — which works, takes a free-form alias, needs
+no category and needs nothing from the core.
+
+Two consequences:
+
+- The **demo fixture** (simulator spec 003) must create those bindings. A simulation
+  order nobody bound is one nobody can call, and the 3D application cannot create
+  bindings of its own.
+- The 3D application addresses a room by **the equipment id of its sensor**, not by a
+  device id. That mapping belongs in the plan JSON it already needs, and it is the
+  fixture's to provide.
+
+Asking the core for a device-order route was considered and not taken: the decision
+table above says anything the demo needs which the product does not offer is done in
+the plugin, the proxy or the 3D app — and this needed nothing at all.
+
 ## Component D — operations (this repo)
 
 - **Compose** — `docker-compose.yml`: stock Sowel image, InfluxDB, the reverse proxy (Caddy or nginx) serving the 3D app and the landing page and fronting the API, **no Docker socket**, plugin dir pre-seeded with the simulator, guest credentials in `.env`.
@@ -134,6 +158,92 @@ A static web app: Three.js, no backend of its own in v1. Generic: it renders _a_
 - **Fixture** — `fixtures/showroom.zip`, produced from the core's anonymised fixture with the simulator remap. The plan JSON of the 3D app is checked against it.
 - **Exposure** — a dedicated VM, Cloudflare tunnel (WAF, rate limit, bot protection), `demo.sowel.org`, link from `docs.sowel.org` and the core README. Private host details go in `sowel-ops`, which must also drop its former demo-host section.
 - **Local first** — everything above runs on a laptop with `docker compose up`, before any VM exists.
+
+## The thirty-second visitor, and why the clock is the wrong lever
+
+**Reopened 2026-09-09.** The decision table says _real time only, no accelerated
+clock_. The request was for accelerated-time modes a visitor could choose. The
+request is right about the problem and, I think, wrong about the lever — so here is
+the problem, what cannot work, and what can.
+
+### The problem is real
+
+A visitor watches for thirty seconds. Most of what is worth seeing takes hours: the
+sun crossing, the production curve filling, the pool warming by a tenth of a degree,
+a thermostat chasing its setpoint, the arbiter granting a load at noon and revoking
+it when a cloud passes. A house that lives in real time is honest and, to someone
+who has just arrived, indistinguishable from a still photograph.
+
+### An accelerated clock inside the plugin cannot work
+
+Not "is inelegant" — cannot. Sowel keeps its own time, in at least five places the
+plugin has no reach into:
+
+| Where                             | What it uses                                                      |
+| --------------------------------- | ----------------------------------------------------------------- |
+| `src/zones/sunlight-manager.ts`   | `suncalc` on `new Date()` — **the core computes its own sunrise** |
+| Mode calendar                     | `croner`, on the real wall clock                                  |
+| `src/energy/tariff-classifier.ts` | `getHours()`, for the HP/HC split                                 |
+| Energy aggregation                | Day boundaries at real local midnight                             |
+| History                           | InfluxDB rows written with real timestamps                        |
+
+Accelerate the simulator and its sun drifts away from the core's. A "shutters at
+dusk" recipe then fires against the core's dusk while the simulated sky is still
+bright — the two halves of the demo contradict each other, which is worse than a
+demo that is merely slow. The same goes for a time offset rather than a rate: the
+desynchronisation is the problem, not its direction.
+
+### What works: replay the day, do not live it faster
+
+The visitor wants to **watch** a day, not to **live** in a fast house. Those are
+different asks, and only the second one breaks anything.
+
+**1. Seed the history at reset** (phase 2, this repo). The reset script writes
+thirty days of synthetic history straight into InfluxDB, computed from the
+simulator's own model — possible precisely because simulator spec 001 made the world
+a pure function of the clock, so any past instant is computable. A visitor then
+lands on **full charts**: today's production curve up to now, the week, the month.
+The live series continues them seamlessly. No clock is faked and nothing can
+disagree, because history is what history is.
+
+This is the biggest win for the least work, and it is worth noticing why: most of
+what takes hours to watch is historical anyway.
+
+**2. A time-lapse in the 3D application** (phase 4). A "revoir la journée" control
+that replays the last twenty-four hours from recorded history — the sun crossing,
+the shutters moving, the production filling, the arbiter granting at noon — at
+whatever speed the visitor likes. It is a **view**, not a clock: the engine keeps
+running in real time underneath, and nothing in it is faked. Combined with the
+seeded history it works for the very first visitor.
+
+**3. Shorten what is slow** (simulator spec 003, and its open question here). The
+recipe timeouts: a motion light that holds for ten minutes is right in a house and
+wrong in a demo. Plus the `sim.*` levers that already exist — force the sky and the
+production changes within a second, place a ghost and the lamp comes on. Immediate
+causality is what thirty seconds actually needs.
+
+### If a genuinely fast house is still wanted
+
+There is exactly one coherent way to do it: **accelerate the whole container, not
+the plugin.** A second instance — same image, clock faked for Sowel _and_ InfluxDB
+at around twelve times — keeps everything in agreement, because everything is fast
+together: the core's own sun, the calendar, the tariff classifier, the history.
+
+It is viable only because the showroom resets nightly, so the faked offset never
+grows beyond a dozen days and TLS certificates stay valid. The costs are real: twice
+the containers, and the month and year energy views are meaningless on that
+instance.
+
+**Recommendation: do 1, 2 and 3, and hold the fast instance** until the real-time
+demo exists and we can see whether it is still needed. My expectation is that seeded
+history plus a replay removes most of the need, and that what is left — watching a
+live day turn — is worth one deliberate second instance rather than a compromise in
+the first.
+
+**Status: proposed.** The decision table's _real time only_ still stands for the
+main instance, and should, because it is what keeps the history coherent with what a
+visitor sees. Nothing above contradicts it; the fast instance in the last section
+would, and would need the table amended with it.
 
 ## Multi-visitor rules
 
@@ -173,15 +283,15 @@ into each repository's feature skill: to 🚧 when a phase's spec is written, to
 when its last pull request merges. Each repository's own `docs/specs-index.md`
 carries the detail below a phase, and is CI-gated there.
 
-| Phase | Repository               | What                                                                                                                                                                                                                 | Status         |
-| ----- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
-| 0     | `sowel` (core)           | Standard users activate modes ([#912](https://github.com/mchacher/sowel/issues/912), shipped in [#916](https://github.com/mchacher/sowel/pull/916))                                                                  | ✅ Done        |
-| 1     | `sowel-plugin-simulator` | World model, devices, orders, `sim.*`, fixture remap — three specs: [001 the house that lives](https://github.com/mchacher/sowel-plugin-simulator/tree/main/specs/001-world-model) 🚧, 002 orders, 003 fixture remap | 🚧 In progress |
-| 2     | `sowel-showroom`         | Compose, proxy, reset, demo fixture, landing page                                                                                                                                                                    | 📝 To do       |
-| 3     | `sowel-house-3d`         | Plan, mapping, REST + WS, read-only scene                                                                                                                                                                            | 📝 To do       |
-| 4     | `sowel-house-3d`         | Clicks, own ghost, journal, visitor count, mobile                                                                                                                                                                    | 📝 To do       |
-| 5     | `sowel-showroom`         | VM, tunnel, `demo.sowel.org`, links, reset monitoring                                                                                                                                                                | 📝 To do       |
-| 6     | all                      | Roof and solar panels, furniture, faults, shared ghosts                                                                                                                                                              | 📝 To do       |
+| Phase | Repository               | What                                                                                                                                                                                                                                                                                                                                                                                                                                | Status         |
+| ----- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| 0     | `sowel` (core)           | Standard users activate modes ([#912](https://github.com/mchacher/sowel/issues/912), shipped in [#916](https://github.com/mchacher/sowel/pull/916))                                                                                                                                                                                                                                                                                 | ✅ Done        |
+| 1     | `sowel-plugin-simulator` | World model, devices, orders, `sim.*`, fixture remap — three specs: [001 the house that lives](https://github.com/mchacher/sowel-plugin-simulator/tree/main/specs/001-world-model) ✅, [002 the house that obeys](https://github.com/mchacher/sowel-plugin-simulator/tree/main/specs/002-orders) ✅, [003 the demo house](https://github.com/mchacher/sowel-plugin-simulator/tree/main/specs/003-fixture) 📝 (three open decisions) | 🚧 In progress |
+| 2     | `sowel-showroom`         | Compose, proxy, reset, demo fixture, landing page                                                                                                                                                                                                                                                                                                                                                                                   | 📝 To do       |
+| 3     | `sowel-house-3d`         | Plan, mapping, REST + WS, read-only scene                                                                                                                                                                                                                                                                                                                                                                                           | 📝 To do       |
+| 4     | `sowel-house-3d`         | Clicks, own ghost, journal, visitor count, mobile                                                                                                                                                                                                                                                                                                                                                                                   | 📝 To do       |
+| 5     | `sowel-showroom`         | VM, tunnel, `demo.sowel.org`, links, reset monitoring                                                                                                                                                                                                                                                                                                                                                                               | 📝 To do       |
+| 6     | all                      | Roof and solar panels, furniture, faults, shared ghosts                                                                                                                                                                                                                                                                                                                                                                             | 📝 To do       |
 
 Status: 📝 To do · 🚧 In progress · ✅ Done
 
