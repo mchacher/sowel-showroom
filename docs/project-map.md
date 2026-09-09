@@ -159,6 +159,92 @@ the plugin, the proxy or the 3D app — and this needed nothing at all.
 - **Exposure** — a dedicated VM, Cloudflare tunnel (WAF, rate limit, bot protection), `demo.sowel.org`, link from `docs.sowel.org` and the core README. Private host details go in `sowel-ops`, which must also drop its former demo-host section.
 - **Local first** — everything above runs on a laptop with `docker compose up`, before any VM exists.
 
+## The thirty-second visitor, and why the clock is the wrong lever
+
+**Reopened 2026-09-09.** The decision table says _real time only, no accelerated
+clock_. The request was for accelerated-time modes a visitor could choose. The
+request is right about the problem and, I think, wrong about the lever — so here is
+the problem, what cannot work, and what can.
+
+### The problem is real
+
+A visitor watches for thirty seconds. Most of what is worth seeing takes hours: the
+sun crossing, the production curve filling, the pool warming by a tenth of a degree,
+a thermostat chasing its setpoint, the arbiter granting a load at noon and revoking
+it when a cloud passes. A house that lives in real time is honest and, to someone
+who has just arrived, indistinguishable from a still photograph.
+
+### An accelerated clock inside the plugin cannot work
+
+Not "is inelegant" — cannot. Sowel keeps its own time, in at least five places the
+plugin has no reach into:
+
+| Where                             | What it uses                                                      |
+| --------------------------------- | ----------------------------------------------------------------- |
+| `src/zones/sunlight-manager.ts`   | `suncalc` on `new Date()` — **the core computes its own sunrise** |
+| Mode calendar                     | `croner`, on the real wall clock                                  |
+| `src/energy/tariff-classifier.ts` | `getHours()`, for the HP/HC split                                 |
+| Energy aggregation                | Day boundaries at real local midnight                             |
+| History                           | InfluxDB rows written with real timestamps                        |
+
+Accelerate the simulator and its sun drifts away from the core's. A "shutters at
+dusk" recipe then fires against the core's dusk while the simulated sky is still
+bright — the two halves of the demo contradict each other, which is worse than a
+demo that is merely slow. The same goes for a time offset rather than a rate: the
+desynchronisation is the problem, not its direction.
+
+### What works: replay the day, do not live it faster
+
+The visitor wants to **watch** a day, not to **live** in a fast house. Those are
+different asks, and only the second one breaks anything.
+
+**1. Seed the history at reset** (phase 2, this repo). The reset script writes
+thirty days of synthetic history straight into InfluxDB, computed from the
+simulator's own model — possible precisely because simulator spec 001 made the world
+a pure function of the clock, so any past instant is computable. A visitor then
+lands on **full charts**: today's production curve up to now, the week, the month.
+The live series continues them seamlessly. No clock is faked and nothing can
+disagree, because history is what history is.
+
+This is the biggest win for the least work, and it is worth noticing why: most of
+what takes hours to watch is historical anyway.
+
+**2. A time-lapse in the 3D application** (phase 4). A "revoir la journée" control
+that replays the last twenty-four hours from recorded history — the sun crossing,
+the shutters moving, the production filling, the arbiter granting at noon — at
+whatever speed the visitor likes. It is a **view**, not a clock: the engine keeps
+running in real time underneath, and nothing in it is faked. Combined with the
+seeded history it works for the very first visitor.
+
+**3. Shorten what is slow** (simulator spec 003, and its open question here). The
+recipe timeouts: a motion light that holds for ten minutes is right in a house and
+wrong in a demo. Plus the `sim.*` levers that already exist — force the sky and the
+production changes within a second, place a ghost and the lamp comes on. Immediate
+causality is what thirty seconds actually needs.
+
+### If a genuinely fast house is still wanted
+
+There is exactly one coherent way to do it: **accelerate the whole container, not
+the plugin.** A second instance — same image, clock faked for Sowel _and_ InfluxDB
+at around twelve times — keeps everything in agreement, because everything is fast
+together: the core's own sun, the calendar, the tariff classifier, the history.
+
+It is viable only because the showroom resets nightly, so the faked offset never
+grows beyond a dozen days and TLS certificates stay valid. The costs are real: twice
+the containers, and the month and year energy views are meaningless on that
+instance.
+
+**Recommendation: do 1, 2 and 3, and hold the fast instance** until the real-time
+demo exists and we can see whether it is still needed. My expectation is that seeded
+history plus a replay removes most of the need, and that what is left — watching a
+live day turn — is worth one deliberate second instance rather than a compromise in
+the first.
+
+**Status: proposed.** The decision table's _real time only_ still stands for the
+main instance, and should, because it is what keeps the history coherent with what a
+visitor sees. Nothing above contradicts it; the fast instance in the last section
+would, and would need the table amended with it.
+
 ## Multi-visitor rules
 
 | Risk                                 | Rule                                                                  |
