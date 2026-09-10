@@ -159,6 +159,48 @@ the plugin, the proxy or the 3D app — and this needed nothing at all.
 - **Exposure** — a dedicated VM, Cloudflare tunnel (WAF, rate limit, bot protection), `demo.sowel.org`, link from `docs.sowel.org` and the core README. Private host details go in `sowel-ops`, which must also drop its former demo-host section.
 - **Local first** — everything above runs on a laptop with `docker compose up`, before any VM exists.
 
+## Phase 1 is done, and here is what it proved
+
+Walked on a stock Sowel 1.68.0 in Docker: instance wiped, the plugin installed, the
+built fixture restored. 92 devices, 86 equipments all `online`, no binding without a
+value, 21 of 22 recipe instances started.
+
+**The house automates itself.** `sim.motion` on the cellar's sensor turns occupancy
+true, the `motion-light` recipe fires, the lamp comes on attributed to `Motion
+Light` in the journal, and the recipe releases it 105 seconds later on its own
+timeout. Nobody ordered the lamp.
+
+**And the energy arbiter arbitrates.** A visitor forces the sky sunny:
+
+| t     | PV   | grid     | surplus | tank    | 230 V contact | arbiter     |
+| ----- | ---- | -------- | ------- | ------- | ------------- | ----------- |
+| 15 s  | 1186 | −767     | −85     | 0       | –             | pending     |
+| 150 s | 1221 | −802     | 720     | 0       | –             | pending     |
+| 270 s | 1251 | −832     | **808** | 0       | –             | pending     |
+| 285 s | 1256 | **−235** | 696     | **600** | **closed**    | **granted** |
+
+The surplus climbs past the 700 W the tank needs, the arbiter grants, the
+`water-heater-solar` recipe closes the contact, the compressor draws 600 W. And
+`availableSurplusW` falls only from 808 to 696 while the export collapses from
+−832 to −235 — because the arbiter knows the collapse is its own grant. That is the
+reservation accounting core spec 140 exists for, on a house that belongs to nobody.
+
+**Three things phase 1 found that are worth carrying forward.**
+
+The core's restore reads its column list from the first row of each table and
+silently drops the rest ([mchacher/sowel#939](https://github.com/mchacher/sowel/issues/939)),
+so a fixture must hand it uniform rows.
+
+A simulated load running on its own schedule is indistinguishable, to the arbiter,
+from a human on a wall switch — it suspended itself on the pool pump with the reason
+`wall-switch-on`, correctly. Anything the arbiter may claim must be driven only by
+orders.
+
+And the recipe packages could not be downloaded from inside the container, which
+sits behind a TLS-intercepting proxy. Probably local to that machine, but **the
+reset script must fail loudly on a missing package** rather than come up with
+twenty-one dead instances.
+
 ## The thirty-second visitor, and why the clock is the wrong lever
 
 **Reopened 2026-09-09.** The decision table says _real time only, no accelerated
@@ -283,15 +325,15 @@ into each repository's feature skill: to 🚧 when a phase's spec is written, to
 when its last pull request merges. Each repository's own `docs/specs-index.md`
 carries the detail below a phase, and is CI-gated there.
 
-| Phase | Repository               | What                                                                                                                                                                                                                                                                                                                                                                                                                                | Status         |
-| ----- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
-| 0     | `sowel` (core)           | Standard users activate modes ([#912](https://github.com/mchacher/sowel/issues/912), shipped in [#916](https://github.com/mchacher/sowel/pull/916))                                                                                                                                                                                                                                                                                 | ✅ Done        |
-| 1     | `sowel-plugin-simulator` | World model, devices, orders, `sim.*`, fixture remap — three specs: [001 the house that lives](https://github.com/mchacher/sowel-plugin-simulator/tree/main/specs/001-world-model) ✅, [002 the house that obeys](https://github.com/mchacher/sowel-plugin-simulator/tree/main/specs/002-orders) ✅, [003 the demo house](https://github.com/mchacher/sowel-plugin-simulator/tree/main/specs/003-fixture) 📝 (three open decisions) | 🚧 In progress |
-| 2     | `sowel-showroom`         | Compose, proxy, reset, demo fixture, landing page                                                                                                                                                                                                                                                                                                                                                                                   | 📝 To do       |
-| 3     | `sowel-house-3d`         | Plan, mapping, REST + WS, read-only scene                                                                                                                                                                                                                                                                                                                                                                                           | 📝 To do       |
-| 4     | `sowel-house-3d`         | Clicks, own ghost, journal, visitor count, mobile                                                                                                                                                                                                                                                                                                                                                                                   | 📝 To do       |
-| 5     | `sowel-showroom`         | VM, tunnel, `demo.sowel.org`, links, reset monitoring                                                                                                                                                                                                                                                                                                                                                                               | 📝 To do       |
-| 6     | all                      | Roof and solar panels, furniture, faults, shared ghosts                                                                                                                                                                                                                                                                                                                                                                             | 📝 To do       |
+| Phase | Repository               | What                                                                                                                                                                                                                                                                                                                                                                                                            | Status   |
+| ----- | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| 0     | `sowel` (core)           | Standard users activate modes ([#912](https://github.com/mchacher/sowel/issues/912), shipped in [#916](https://github.com/mchacher/sowel/pull/916))                                                                                                                                                                                                                                                             | ✅ Done  |
+| 1     | `sowel-plugin-simulator` | World model, devices, orders, `sim.*`, demo fixture — three specs, all shipped: [001 the house that lives](https://github.com/mchacher/sowel-plugin-simulator/tree/main/specs/001-world-model), [002 the house that obeys](https://github.com/mchacher/sowel-plugin-simulator/tree/main/specs/002-orders), [003 the demo house](https://github.com/mchacher/sowel-plugin-simulator/tree/main/specs/003-fixture) | ✅ Done  |
+| 2     | `sowel-showroom`         | Compose, proxy, reset, demo fixture, landing page                                                                                                                                                                                                                                                                                                                                                               | 📝 To do |
+| 3     | `sowel-house-3d`         | Plan, mapping, REST + WS, read-only scene                                                                                                                                                                                                                                                                                                                                                                       | 📝 To do |
+| 4     | `sowel-house-3d`         | Clicks, own ghost, journal, visitor count, mobile                                                                                                                                                                                                                                                                                                                                                               | 📝 To do |
+| 5     | `sowel-showroom`         | VM, tunnel, `demo.sowel.org`, links, reset monitoring                                                                                                                                                                                                                                                                                                                                                           | 📝 To do |
+| 6     | all                      | Roof and solar panels, furniture, faults, shared ghosts                                                                                                                                                                                                                                                                                                                                                         | 📝 To do |
 
 Status: 📝 To do · 🚧 In progress · ✅ Done
 
