@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sowel — maison de démonstration</title>
+    <meta
+      name="description"
+      content="Une maison fictive qui vit en temps réel, pilotée par Sowel. Entrez et agissez."
+    />
+    <style>
+      :root {
+        --ocean: #1a4f6e;
+        --ocean-dark: #144159;
+        --ocean-light: #eef5f8;
+        --amber: #f2c035;
+        --ink: #16242c;
+        --muted: #5c7280;
+        --bg: #fbfcfd;
+        --card: #fff;
+        --line: #dde6ec;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --ocean: #4e9cc4;
+          --ocean-dark: #7bb9d8;
+          --ocean-light: #16323f;
+          --ink: #e8f0f4;
+          --muted: #9db3c0;
+          --bg: #0e1a21;
+          --card: #16242c;
+          --line: #243842;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font:
+          15px/1.6 Inter,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        display: grid;
+        place-items: center;
+        min-height: 100vh;
+        padding: 24px;
+      }
+      main {
+        width: 100%;
+        max-width: 620px;
+      }
+      h1 {
+        font-size: 30px;
+        line-height: 1.2;
+        margin: 0 0 12px;
+        letter-spacing: -0.02em;
+      }
+      .lede {
+        font-size: 17px;
+        color: var(--muted);
+        margin: 0 0 28px;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 22px;
+        margin-bottom: 16px;
+      }
+      .card h2 {
+        font-size: 15px;
+        margin: 0 0 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+        font-weight: 600;
+      }
+      .card p {
+        margin: 0 0 16px;
+        color: var(--muted);
+      }
+      a.btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--ocean);
+        color: #fff;
+        text-decoration: none;
+        padding: 11px 18px;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: background 0.15s;
+      }
+      a.btn:hover {
+        background: var(--ocean-dark);
+      }
+      a.btn[aria-disabled="true"] {
+        background: var(--line);
+        color: var(--muted);
+        pointer-events: none;
+      }
+      .status {
+        font-size: 14px;
+        color: var(--muted);
+        min-height: 22px;
+      }
+      .status[data-state="error"] {
+        color: #b4462f;
+      }
+      ul.facts {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        font-size: 14px;
+        color: var(--muted);
+      }
+      ul.facts li {
+        padding: 7px 0;
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+      }
+      ul.facts li:last-child {
+        border-bottom: 0;
+      }
+      ul.facts b {
+        color: var(--ink);
+        font-weight: 600;
+      }
+      footer {
+        font-size: 13px;
+        color: var(--muted);
+        text-align: center;
+        margin-top: 8px;
+      }
+      footer a {
+        color: var(--ocean);
+      }
+      .badge {
+        display: inline-block;
+        background: var(--ocean-light);
+        color: var(--ocean);
+        font-size: 12px;
+        font-weight: 600;
+        padding: 3px 9px;
+        border-radius: 99px;
+        margin-left: 8px;
+        vertical-align: middle;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Une maison qui vit, et que vous pouvez manipuler</h1>
+      <p class="lede">
+        Quatre personnes y habitent selon un agenda, le soleil s'y lève pour de vrai, les recettes
+        s'y déclenchent toutes seules. Allumez une lampe, fermez un volet, entrez dans une pièce et
+        regardez le détecteur, la recette et le journal faire leur travail.
+      </p>
+
+      <div class="card">
+        <h2>Entrer</h2>
+        <p>
+          Rien à saisir : vous êtes connecté en tant que visiteur. Vous pouvez agir sur la maison,
+          pas la casser.
+        </p>
+        <a class="btn" id="enter" href="#" aria-disabled="true">Ouvrir Sowel</a>
+        <p class="status" id="status">Connexion…</p>
+      </div>
+
+      <div class="card">
+        <h2>La maison en 3D <span class="badge">bientôt</span></h2>
+        <p>
+          La même maison, rendue en trois dimensions et pilotée par le même Sowel : ce que vous
+          cliquez dans l'image est ce que Sowel fait vraiment.
+        </p>
+        <a class="btn" aria-disabled="true" href="#">Pas encore disponible</a>
+      </div>
+
+      <div class="card">
+        <h2>Ce que vous regardez</h2>
+        <ul class="facts">
+          <li><span>La maison</span> <b>simulée de bout en bout</b></li>
+          <li><span>Le temps</span> <b>réel, pas accéléré</b></li>
+          <li><span>Remise à zéro</span> <b>chaque nuit</b></li>
+          <li><span>Les données</span> <b>n'appartiennent à personne</b></li>
+          <li><span>Le moteur</span> <b id="version">Sowel</b></li>
+        </ul>
+      </div>
+
+      <footer>
+        Sowel est un moteur domotique libre —
+        <a href="https://github.com/mchacher/sowel">le code</a> ·
+        <a href="https://docs.sowel.org">la documentation</a><br />
+        Déjà entré et vous voulez revoir cette page ? <a href="/bienvenue">/bienvenue</a>
+      </footer>
+    </main>
+
+    <script>
+      // The guest credentials are public by design (spec 001, FR2): what a guest
+      // can do is safe by construction, and the proxy's deny list is what makes it
+      // so. They are fetched rather than inlined so nothing is committed.
+      const statusEl = document.getElementById("status");
+      const enterEl = document.getElementById("enter");
+
+      function fail(message) {
+        statusEl.dataset.state = "error";
+        statusEl.textContent = message;
+      }
+
+      async function signIn() {
+        let config;
+        try {
+          const res = await fetch("/showroom/config.json", { cache: "no-store" });
+          if (!res.ok) throw new Error(String(res.status));
+          config = await res.json();
+        } catch {
+          return fail("La démo n'est pas encore prête — la remise à zéro est peut-être en cours.");
+        }
+
+        let session;
+        try {
+          const res = await fetch("/api/v1/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username: config.username, password: config.password }),
+          });
+          if (!res.ok) throw new Error(String(res.status));
+          session = await res.json();
+        } catch {
+          return fail("Connexion impossible. Réessayez dans une minute.");
+        }
+
+        // The product UI reads its session from localStorage, the same way it does
+        // after a normal login.
+        try {
+          localStorage.setItem("sowel.accessToken", session.accessToken);
+          if (session.refreshToken)
+            localStorage.setItem("sowel.refreshToken", session.refreshToken);
+        } catch {
+          return fail("Votre navigateur bloque le stockage local, nécessaire à la démo.");
+        }
+
+        // The root is routed on this cookie: with it, `/` is the product UI; without
+        // it, this page. So setting it is what "entering" means.
+        document.cookie = "showroom=entered; path=/; max-age=86400; samesite=lax";
+
+        statusEl.dataset.state = "";
+        statusEl.textContent = "Vous êtes connecté en tant que visiteur.";
+        enterEl.setAttribute("aria-disabled", "false");
+        enterEl.href = "/";
+        enterEl.textContent = "Ouvrir Sowel →";
+
+        try {
+          const res = await fetch("/api/v1/health");
+          const health = await res.json();
+          if (health.version) {
+            document.getElementById("version").textContent = "Sowel " + health.version;
+          }
+        } catch {
+          /* the version is decoration */
+        }
+      }
+
+      signIn();
+    </script>
+  </body>
+</html>

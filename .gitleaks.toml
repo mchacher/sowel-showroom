@@ -59,6 +59,12 @@ paths = [
   '''.*__fixtures__/.*''',
   # MkDocs Playwright snapshots — page state, no credentials.
   '''\.playwright-mcp/.*''',
+  # The environment template. It is committed precisely because it has no values:
+  # gitleaks reads an empty `TOKEN=` and takes the *next* key's value as the
+  # secret, which is a false positive every time. `scripts/check-env-example.sh`
+  # is what actually holds this line — it refuses a value for any key whose name
+  # says it is a secret, which is a stronger rule than pattern matching.
+  '''\.env\.example''',
 ]
 
 # Specific values that gitleaks would otherwise flag but are

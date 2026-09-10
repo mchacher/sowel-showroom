@@ -3,3 +3,8 @@ dist/
 .DS_Store
 .env
 *.log
+
+# The guest credentials the reset hands to the landing page. Public by
+# design, committed never.
+landing/showroom/
+.cache/
