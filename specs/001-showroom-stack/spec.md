@@ -1,6 +1,6 @@
 # Spec 001 — The showroom stack
 
-**Status**: 📝 Draft
+**Status**: ✅ Implemented — walked from a clean checkout, twice
 **Phase**: 2 of the [project map](../../docs/project-map.md)
 **Depends on**: `sowel-plugin-simulator` v0.2.0 and its demo fixture (phase 1, done)
 
@@ -91,9 +91,15 @@ request that ends the demo until the next reset.
 
 ### FR4 — Quotas
 
-Per IP at the proxy: one mutating request every two seconds, thirty a minute, with
-a small burst. Reads are not limited — a visitor with the product UI open is
-polling nothing harmful, and the WebSocket is one connection.
+Per IP at the proxy: one mutating request every two seconds sustained, thirty a
+minute. Reads are not limited — a visitor with the product UI open is polling
+nothing harmful, and the WebSocket is one connection.
+
+**Excess is delayed before it is refused.** A visitor clicks a lamp, a shutter and
+a mode in four seconds; a script does not stop. Six actions pass immediately, the
+next six are held back to the sustained rate, and only past that does a caller get
+a 429. Delaying makes the house feel momentarily slow, which is survivable;
+refusing makes it feel broken, which is the thing we are trying to avoid.
 
 Per target, the simulator's own three-second debounce already stops one lamp being
 strobed. The proxy's job is the script, not the enthusiast.
@@ -161,17 +167,18 @@ visitor who thinks this is somebody's real home is being misled.
 
 ## Acceptance criteria
 
-- [ ] AC1 — From a clean checkout: `cp .env.example .env`, `docker compose up -d`,
+- [x] AC1 — From a clean checkout: `cp .env.example .env`, `docker compose up -d`,
       `scripts/reset.sh` → a living house, no hand steps.
-- [ ] AC2 — `scripts/reset.sh` run twice gives the same state.
-- [ ] AC3 — The landing page logs a visitor in with nothing typed.
-- [ ] AC4 — A guest can order a light and switch a mode through the proxy.
-- [ ] AC5 — Every denied route returns 403 **through the proxy** while the same
+- [x] AC2 — `scripts/reset.sh` run twice gives the same state.
+- [x] AC3 — The landing page logs a visitor in with nothing typed.
+- [x] AC4 — A guest can order a light and switch a mode through the proxy.
+- [x] AC5 — Every denied route returns 403 **through the proxy** while the same
       request succeeds against the origin, proving the proxy is what stops it.
-- [ ] AC6 — Thirty-one mutations in a minute from one IP: the last is rate-limited.
-- [ ] AC7 — `reset.sh` fails, naming the problem, when a recipe package is missing.
-- [ ] AC8 — `check-deny-list.sh` fails when the core's allowlist gains a route.
-- [ ] AC9 — `npm run validate` is green; no credential in the repository.
+- [x] AC6 — A burst of mutations from one IP is delayed and then refused, and
+      reads are never limited.
+- [x] AC7 — `reset.sh` fails, naming the problem, when a recipe package is missing.
+- [x] AC8 — `check-deny-list.sh` fails when the core's allowlist gains a route.
+- [x] AC9 — `npm run validate` is green; no credential in the repository.
 
 ## Edge cases
 
@@ -183,3 +190,56 @@ visitor who thinks this is somebody's real home is being misled.
 | A visitor finds the guest password                  | Nothing changes. That is FR2.                                                                                                                                                                   |
 | The reset runs while visitors are connected         | They are logged out and land on the page again. The nightly reset is announced on the landing page.                                                                                             |
 | The core image is bumped                            | The compose pins it; bumping is a pull request here, and the reset's verification is what catches a breaking change.                                                                            |
+
+---
+
+## Amendments
+
+### 2026-09-09 — what the walk found
+
+Six things, all found by running it rather than by reading it.
+
+**My own verification was vacuous.** The recipe check read
+`i.get('running', True)`, and no such field exists on a recipe instance — so it was
+true always. It passed on an instance with twenty-one enabled instances and **zero
+recipe definitions loaded**, which is the exact phase 1 failure it was written to
+catch. It now asks the other end: every `recipeId` an enabled instance names must
+appear in `GET /api/v1/recipes`. A check that cannot fail is worse than no check,
+because it is also a claim.
+
+**The landing page and the product UI both wanted `/`.** The UI is a stock image
+with absolute asset paths and cannot move under a subpath. The root is now routed on
+a cookie the page sets once it has a session: a first visit sees the page, every
+visit after goes straight in, and `/bienvenue` always brings it back. `try_files`
+with a named location branches; `proxy_pass` inside an `if` does not.
+
+**`burst=5 nodelay` was correct by the numbers and wrong for a visitor.** Measured:
+thirty-five quick mutations gave five accepted and thirty refused. Someone who
+clicks a lamp, a shutter and a mode in four seconds would be told no. Now
+`burst=12 delay=6` — a sequential visitor is never refused, only briefly slowed
+(twenty actions took twenty-eight seconds), while forty fired in parallel give
+twelve through and twenty-eight refused. The distinction between a visitor and a
+script is real rather than nominal.
+
+**Bash brace-expands JSON.** `{"a":1,"b":2}` contains a comma, so the braces vanish
+and the body arrives as `'username': ...`. Values now travel as argv into a small
+`json_body` helper, which also means a password with a quote in it is not a
+problem.
+
+**`source`-ing `.env` runs it.** `ADMIN_DISPLAY_NAME=Showroom Admin` made `Admin` a
+command. Docker Compose's own parser is happy either way, which is why it was not
+obvious; quoting satisfies both, and `check-env-example.sh` now refuses an unquoted
+value with a space.
+
+**`"$EMPTY"/*/` walks the filesystem root.** `PACKAGES_DIR` was unset and the
+side-load loop iterated `/Applications/`, `/Library/`, `/System/`. It did no harm
+because an inner guard caught it, but it then side-loaded **nothing** and said so
+only in a line nobody read. It now refuses to side-load zero packages: that is how
+an instance comes up with recipe instances pointing at packages it does not have.
+
+### 2026-09-09 — the production meter is excused at night
+
+The simulated inverter goes offline after sunset rather than reporting 0 W, because
+that is what a real one does (simulator spec 001, FR12), and the equipment it backs
+goes offline with it. The verification notes it instead of failing on it. The house
+being honest about the dark is not a broken demo.

@@ -4,24 +4,24 @@ Branch: `feat/showroom-stack`. Scopes: `compose`, `proxy`, `reset`, `docs`, `ci`
 
 ## Steps
 
-- [ ] **S1 — `.env.example` and `compose.yml`**: sowel (pinned image), influxdb,
+- [x] **S1 — `.env.example` and `compose.yml`**: sowel (pinned image), influxdb,
       nginx. Sowel's port unpublished, no Docker socket, named volumes so the
       reset can wipe one and keep the other.
-- [ ] **S2 — `scripts/deny-list.txt`** and **`scripts/check-deny-list.sh`**: the
+- [x] **S2 — `scripts/deny-list.txt`** and **`scripts/check-deny-list.sh`**: the
       classification as data, and the check that the core's allowlist has not grown
       past it. Wired into `npm run validate`.
-- [ ] **S3 — `proxy/nginx.conf`**: the deny locations generated from the data, the
+- [x] **S3 — `proxy/nginx.conf`**: the deny locations generated from the data, the
       `limit_req` zone, the WebSocket upgrade, the landing page, the upstream.
-- [ ] **S4 — `scripts/lib/sowel-api.sh`**: login, wait-for-health, a curl wrapper
+- [x] **S4 — `scripts/lib/sowel-api.sh`**: login, wait-for-health, a curl wrapper
       that fails on a non-2xx and says what it asked for.
-- [ ] **S5 — `scripts/reset.sh`**: the eight steps, with a trap naming the one that
+- [x] **S5 — `scripts/reset.sh`**: the eight steps, with a trap naming the one that
       failed.
-- [ ] **S6 — the verification**: FR6's six checks, including ordering a light as the
+- [x] **S6 — the verification**: FR6's six checks, including ordering a light as the
       guest and being refused a password change.
-- [ ] **S7 — `landing/index.html`**: two sentences, the automatic login, the product
+- [x] **S7 — `landing/index.html`**: two sentences, the automatic login, the product
       UI, a labelled place for the 3D app, and the nightly-reset notice.
-- [ ] **S8 — `docs/operations.md`**: for a human at 3 a.m. who wrote none of this.
-- [ ] **S9 — the whole thing, from a clean checkout**, twice, and with a
+- [x] **S8 — `docs/operations.md`**: for a human at 3 a.m. who wrote none of this.
+- [x] **S9 — the whole thing, from a clean checkout**, twice, and with a
       deliberately broken fixture to prove the verification bites.
 
 ## Test plan

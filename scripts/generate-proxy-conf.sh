@@ -58,10 +58,22 @@ map $request_method $mutation_key {
   DELETE  $binary_remote_addr;
 }
 
-# 30 a minute is one every two seconds sustained; the burst is what makes a
-# flurry of clicks feel like a house rather than a queue.
+# 30 a minute is one every two seconds sustained.
 limit_req_zone $mutation_key zone=mutations:10m rate=30r/m;
 limit_req_status 429;
+
+# Where `/` goes.
+#
+# The landing page and the product UI both want to be the root, and the UI is a
+# stock image whose assets are absolute — it cannot be moved under a subpath. So
+# the root is routed on a cookie the landing page sets once it has a session:
+# a first visit sees the page, every visit after goes straight in, and clearing
+# cookies brings the page back. `try_files` with a named location is the
+# documented way to branch; `proxy_pass` inside an `if` is not.
+map $cookie_showroom $root_target {
+  default  "@landing";
+  "entered" "@app";
+}
 
 # What a visitor may not do. Generated from scripts/deny-list.txt.
 map "$request_method:$uri" $denied {
@@ -84,15 +96,40 @@ server {
   access_log /var/log/nginx/access.log combined;
   client_max_body_size 2m;
 
-  # --- The landing page ---------------------------------------------------
-  # Served from the proxy so it works before Sowel is up, which is exactly when
-  # somebody arrives during a reset.
+  # --- The root, and the landing page -------------------------------------
+  # Served from the proxy so the page works before Sowel is up, which is exactly
+  # when somebody arrives during a reset.
   location = / {
+    try_files /does-not-exist $root_target;
+  }
+
+  location @landing {
     root /usr/share/nginx/html;
     try_files /index.html =404;
+    add_header Cache-Control "no-store";
   }
+
+  location @app {
+    proxy_pass http://sowel;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Connection "";
+  }
+
+  # The page's own assets, and the guest credentials the reset writes.
   location /showroom/ {
     root /usr/share/nginx/html;
+    add_header Cache-Control "no-store";
+  }
+
+  # An explicit way back to the page, for a visitor who wants to start over.
+  location = /bienvenue {
+    root /usr/share/nginx/html;
+    try_files /index.html =404;
+    add_header Cache-Control "no-store";
   }
 
   # --- The API -----------------------------------------------------------
@@ -100,7 +137,17 @@ server {
     if ($denied) {
       return 403;
     }
-    limit_req zone=mutations burst=5 nodelay;
+    # `delay=6` over a burst of 12: the first six actions go straight through, the
+    # next six are held back to the sustained rate, and only past that does a
+    # caller get a 429.
+    #
+    # The first attempt used `burst=5 nodelay`, which refused everything past the
+    # fifth — measured: thirty-five quick mutations gave five accepted and thirty
+    # rejected. Correct by the spec's numbers and wrong for a visitor, who clicks
+    # a lamp, a shutter and a mode in four seconds and would be told no. Delaying
+    # makes the house feel momentarily slow; refusing makes it feel broken. A
+    # script still gets throttled, which is the only thing this is for.
+    limit_req zone=mutations burst=12 delay=6;
 
     proxy_pass http://sowel;
     proxy_http_version 1.1;

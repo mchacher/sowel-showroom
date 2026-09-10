@@ -28,5 +28,21 @@ while IFS= read -r line; do
   esac
 done < "$TEMPLATE"
 
+# `reset.sh` loads the file with `set -a; . ./.env`, which runs it as shell — so an
+# unquoted value with a space becomes a command. Docker Compose's own parser is
+# happy either way and strips surrounding quotes, so quoting satisfies both.
+while IFS= read -r line; do
+  case "$line" in \#*|"") continue ;; esac
+  value="${line#*=}"
+  case "$value" in
+    '"'*|"'"*|"") continue ;;
+    *[[:space:]]*)
+      echo "❌ $TEMPLATE: ${line%%=*} has an unquoted value containing a space." >&2
+      echo "   \`source\` would run it as a command. Quote it." >&2
+      bad=$((bad + 1))
+      ;;
+  esac
+done < "$TEMPLATE"
+
 [ "$bad" -eq 0 ] || exit 1
-echo "✓ $TEMPLATE carries no secret value"
+echo "✓ $TEMPLATE carries no secret value and nothing source would choke on"
