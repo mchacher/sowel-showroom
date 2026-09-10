@@ -1,0 +1,41 @@
+# ============================================================
+# What a visitor may and may not do (spec 001, FR3).
+#
+# One line per route the Sowel core allows a `standard` user to write, taken from
+# STANDARD_WRITE_ALLOWLIST in src/auth/auth-middleware.ts. Every route there must
+# appear here as `keep` or `deny`, with a reason — `check-deny-list.sh` fails when
+# the core's list grows past this file, so a new thing a visitor can do is a
+# decision rather than a discovery.
+#
+# Format:  <keep|deny>  <METHOD>  <nginx location>  # reason
+#
+# The nginx location is what the proxy matches on, so `=` means exact. That
+# distinction is load-bearing: PUT /api/v1/me is denied and
+# PUT /api/v1/me/preferences is kept.
+# ============================================================
+
+# --- What the demo is for -----------------------------------
+keep  POST    ~ ^/api/v1/equipments/[^/]+/orders/[^/]+$        # act on an equipment: this is the demo
+keep  POST    ~ ^/api/v1/zones/[^/]+/orders/[^/]+$             # all lights off, all shutters closed
+keep  POST    ~ ^/api/v1/modes/[^/]+/activate$                 # day / evening / night — core #912 exists for this
+keep  POST    ~ ^/api/v1/modes/[^/]+/deactivate$               # the other half of the same gesture
+keep  POST    ~ ^/api/v1/modes/[^/]+/apply-to-zone/[^/]+$      # a mode on one room
+keep  POST    ~ ^/api/v1/equipments/[^/]+/timed-action$        # "close the gate in five minutes" shows well
+keep  DELETE  ~ ^/api/v1/equipments/[^/]+/timed-action$        # and cancelling it
+keep  PUT     = /api/v1/me/preferences                        # language and theme: reading in English is a feature
+keep  POST    = /api/v1/auth/logout                           # harmless
+
+# --- One request that would end the demo --------------------
+deny  PUT     = /api/v1/me/password                           # locks out every other visitor at once
+deny  POST    = /api/v1/me/mfa/totp/setup                     # MFA on a shared account locks everyone out
+deny  POST    = /api/v1/me/mfa/totp/confirm                   # idem
+deny  DELETE  = /api/v1/me/mfa/totp                           # idem
+deny  POST    = /api/v1/me/mfa/backup-codes/regenerate        # idem
+deny  DELETE  ~ ^/api/v1/me/mfa/trusted-devices/[^/]+$        # idem
+
+# --- Smaller, still not ours to give away -------------------
+deny  PUT     = /api/v1/me                                    # renames the shared account: vandalism, no upside
+deny  POST    = /api/v1/me/tokens                             # a long-lived token is a way around this proxy
+deny  DELETE  ~ ^/api/v1/me/tokens/[^/]+$                     # and revoking someone else's
+deny  POST    = /api/v1/push/subscriptions                    # the demo would notify a stranger's device
+deny  DELETE  = /api/v1/push/subscriptions                    # idem

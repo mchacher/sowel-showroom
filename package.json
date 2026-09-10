@@ -9,8 +9,11 @@
     "format:check": "prettier --check \"**/*.{md,yml,yaml,json}\"",
     "lint:sh": "bash scripts/check-shell.sh",
     "lint:compose": "bash scripts/check-compose.sh",
-    "validate": "npm run format:check && npm run lint:sh && npm run lint:compose && bash scripts/check-specs-complete.sh && bash scripts/check-specs-index.sh",
-    "prepare": "husky"
+    "validate": "npm run format:check && npm run lint:sh && npm run lint:compose && npm run lint:env && npm run lint:deny && npm run lint:proxy && bash scripts/check-specs-complete.sh && bash scripts/check-specs-index.sh",
+    "prepare": "husky",
+    "lint:proxy": "bash scripts/check-proxy.sh",
+    "lint:deny": "bash scripts/check-deny-list.sh",
+    "lint:env": "bash scripts/check-env-example.sh"
   },
   "lint-staged": {
     "*.{md,yml,yaml,json}": [
