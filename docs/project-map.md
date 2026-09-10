@@ -159,6 +159,41 @@ the plugin, the proxy or the 3D app — and this needed nothing at all.
 - **Exposure** — a dedicated VM, Cloudflare tunnel (WAF, rate limit, bot protection), `demo.sowel.org`, link from `docs.sowel.org` and the core README. Private host details go in `sowel-ops`, which must also drop its former demo-host section.
 - **Local first** — everything above runs on a laptop with `docker compose up`, before any VM exists.
 
+## Phase 2 is done: the demo exists, on a laptop
+
+`cp .env.example .env && docker compose up -d && scripts/reset.sh` gives a house a
+browser lands in, logged in, and cannot break. Walked from a clean checkout twice,
+then deliberately broken to check the alarm works.
+
+**What a visitor can do is safe by construction**, which is the only form of safety
+available to a demo whose guest password reaches every browser. The core's own
+`STANDARD_WRITE_ALLOWLIST` is the authority: twenty routes, each classified with a
+reason, orders and modes and timed actions kept, password and MFA and tokens and
+push refused. A check reads that allowlist out of the core and fails on anything
+this repository has not classified, so a new thing a visitor can do is a decision
+rather than a discovery.
+
+Sowel's port is not published, which is what makes the refusal real:
+
+|                                       |                             |
+| ------------------------------------- | --------------------------- |
+| `PUT /me/password` through the proxy  | 403                         |
+| the same request direct to the origin | 401 — reached and processed |
+
+And the quota tells a visitor from a script rather than guessing:
+
+|                                   | accepted      | refused |
+| --------------------------------- | ------------- | ------- |
+| 20 actions sequential (a visitor) | 20, over 28 s | 0       |
+| 40 actions parallel (a script)    | 12            | 28      |
+
+**The lesson worth carrying to phase 3.** The first version of the reset's own
+verification could not fail: it read a field that does not exist, so it passed on an
+instance with twenty-one recipe instances and zero recipe definitions loaded — the
+exact failure it was written to catch. A check that cannot fail is worse than no
+check, because it is also a claim. Every assertion in phases 3 and 4 gets broken on
+purpose once, to watch it go red.
+
 ## The thirty-second visitor, and why the clock is the wrong lever
 
 **Reopened 2026-09-09.** The decision table says _real time only, no accelerated
@@ -287,7 +322,7 @@ carries the detail below a phase, and is CI-gated there.
 | ----- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
 | 0     | `sowel` (core)           | Standard users activate modes ([#912](https://github.com/mchacher/sowel/issues/912), shipped in [#916](https://github.com/mchacher/sowel/pull/916))                                                                                                                                                                                                                                                                                 | ✅ Done        |
 | 1     | `sowel-plugin-simulator` | World model, devices, orders, `sim.*`, fixture remap — three specs: [001 the house that lives](https://github.com/mchacher/sowel-plugin-simulator/tree/main/specs/001-world-model) ✅, [002 the house that obeys](https://github.com/mchacher/sowel-plugin-simulator/tree/main/specs/002-orders) ✅, [003 the demo house](https://github.com/mchacher/sowel-plugin-simulator/tree/main/specs/003-fixture) 📝 (three open decisions) | 🚧 In progress |
-| 2     | `sowel-showroom`         | Compose, proxy, reset, demo fixture, landing page                                                                                                                                                                                                                                                                                                                                                                                   | 📝 To do       |
+| 2     | `sowel-showroom`         | Compose, proxy, reset, demo fixture, landing page — [spec 001](specs/001-showroom-stack/)                                                                                                                                                                                                                                                                                                                                           | ✅ Done        |
 | 3     | `sowel-house-3d`         | Plan, mapping, REST + WS, read-only scene                                                                                                                                                                                                                                                                                                                                                                                           | 📝 To do       |
 | 4     | `sowel-house-3d`         | Clicks, own ghost, journal, visitor count, mobile                                                                                                                                                                                                                                                                                                                                                                                   | 📝 To do       |
 | 5     | `sowel-showroom`         | VM, tunnel, `demo.sowel.org`, links, reset monitoring                                                                                                                                                                                                                                                                                                                                                                               | 📝 To do       |
