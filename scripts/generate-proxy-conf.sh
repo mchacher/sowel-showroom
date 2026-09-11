@@ -101,6 +101,12 @@ server {
   access_log /var/log/nginx/access.log combined;
   client_max_body_size 2m;
 
+  # Every redirect this server issues is built from `$host`, which drops the port —
+  # so `/maison` sent a browser to `http://localhost/maison/`, a host that is not
+  # this one. Relative redirects carry no host at all and are therefore always
+  # right, whatever port, tunnel or domain the visitor arrived through.
+  absolute_redirect off;
+
   # --- The root, and the landing page -------------------------------------
   # Served from the proxy so the page works before Sowel is up, which is exactly
   # when somebody arrives during a reset.
@@ -148,6 +154,24 @@ server {
     root /usr/share/nginx/html;
     try_files /index.html =404;
     add_header Cache-Control "no-store";
+  }
+
+  # Logging out clears the tokens and leaves the cookie, and the cookie is what
+  # routes `/` to the product UI — so a visitor who signs out lands on Sowel's
+  # login screen, on a shared account whose password they were never given, with
+  # no way back but a URL nobody told them about. Clearing the cookie with the
+  # session sends them to the landing page instead, which logs them straight back
+  # in. An exact-match location outranks the `/api/` prefix below; everything else
+  # about the request is proxied identically.
+  location = /api/v1/auth/logout {
+    proxy_pass http://sowel;
+    proxy_http_version 1.1;
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Connection "";
+    add_header Set-Cookie "showroom=; path=/; max-age=0; samesite=lax" always;
   }
 
   # --- The API -----------------------------------------------------------
