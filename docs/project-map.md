@@ -35,6 +35,19 @@ Settled in discussion; the phase specs do not reopen them.
 | 3D construction          | **Procedural** walls from a plan JSON + **CC0 low-poly furniture** (Kenney, Quaternius, Poly Pizza) + Sowel palette | No Blender skill required, everything data-driven, stylised rather than pseudo-realistic. The prototype in `sowel-house-3d/prototype/` validated the look.                            |
 | Solar panels             | On the roof, so the house gets a roof — **later phase**                                                             | Requested; not needed to validate the rest.                                                                                                                                           |
 
+### Amendment, 2026-09-11 — the demo house is a pavilion
+
+The fixture is a real house: four levels, a cellar and a workshop under the garage,
+two children's rooms on a second floor. Phase 3 drew it and found a tower nobody can
+read — the storey above hides the one below whichever way it is shown. Decision: **a
+simple house**, a ground floor and one storey, the garage attached at the side with a
+door worth showing, laid out the way a French pavilion is. The 3D plan is the drawing
+of it (sowel-house-3d spec 002); the simulator reshapes the fixture to the same
+fourteen rooms and carries the plan's areas and orientations (sowel-plugin-simulator
+0.3.0, spec 003 amendment). Fewer equipments — the cellar's and workshop's six — and
+that is accepted. "Pure simulator, no production mirror" stands: the mirror was never
+the point, and this is where it stops being one in shape as well as in data.
+
 ## Rejected alternatives (so they are not re-litigated)
 
 Each of these was considered and turned down. Reopening one is allowed; doing it
