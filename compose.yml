@@ -88,6 +88,10 @@ services:
     volumes:
       - ./proxy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ./landing:/usr/share/nginx/html:ro
+      # The 3D house, built from sowel-house-3d and mounted here so it shares this
+      # origin — and therefore the landing page's session. Absent until somebody
+      # builds it, which nginx treats as a 404 rather than a failure to start.
+      - ${HOUSE_3D_DIST:-../sowel-house-3d/dist}:/usr/share/nginx/house3d:ro
     depends_on:
       - sowel
     logging:
