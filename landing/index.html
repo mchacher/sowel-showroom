@@ -237,12 +237,14 @@
           return fail("Connexion impossible. Réessayez dans une minute.");
         }
 
-        // The product UI reads its session from localStorage, the same way it does
-        // after a normal login.
+        // The product UI's own keys, character for character. Guessing a tidier
+        // name meant the interface saw no session and a visitor who had just been
+        // logged in landed on the login screen — the entire thing this page exists
+        // to avoid.
         try {
-          localStorage.setItem("sowel.accessToken", session.accessToken);
+          localStorage.setItem("sowel_access_token", session.accessToken);
           if (session.refreshToken)
-            localStorage.setItem("sowel.refreshToken", session.refreshToken);
+            localStorage.setItem("sowel_refresh_token", session.refreshToken);
         } catch {
           return fail("Votre navigateur bloque le stockage local, nécessaire à la démo.");
         }

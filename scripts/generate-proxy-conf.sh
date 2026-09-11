@@ -83,6 +83,11 @@ HEADER
   cat <<'FOOTER'
 }
 
+# `$host` drops the port, and the core's WebSocket allows an Origin when its host
+# matches the Host header it was reached on — so `Host: localhost` against
+# `Origin: http://localhost:8080` is not the same origin and the socket is refused
+# with "Origin not allowed", after a successful 101. `$http_host` is what the
+# browser actually sent, port and all.
 upstream sowel {
   server sowel:3000;
   keepalive 16;
@@ -112,7 +117,7 @@ server {
   location @app {
     proxy_pass http://sowel;
     proxy_http_version 1.1;
-    proxy_set_header Host $host;
+    proxy_set_header Host $http_host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
@@ -164,7 +169,7 @@ server {
 
     proxy_pass http://sowel;
     proxy_http_version 1.1;
-    proxy_set_header Host $host;
+    proxy_set_header Host $http_host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
@@ -180,7 +185,7 @@ server {
     proxy_http_version 1.1;
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection "upgrade";
-    proxy_set_header Host $host;
+    proxy_set_header Host $http_host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_read_timeout 3600s;
     proxy_send_timeout 3600s;
@@ -190,7 +195,7 @@ server {
   location / {
     proxy_pass http://sowel;
     proxy_http_version 1.1;
-    proxy_set_header Host $host;
+    proxy_set_header Host $http_host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
