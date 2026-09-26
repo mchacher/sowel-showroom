@@ -112,6 +112,13 @@
       .status[data-state="error"] {
         color: #b4462f;
       }
+      .alt {
+        font-size: 14px;
+        color: var(--muted);
+      }
+      .alt a {
+        color: var(--ocean);
+      }
       ul.facts {
         list-style: none;
         padding: 0;
@@ -170,17 +177,20 @@
           Rien à saisir : vous êtes connecté en tant que visiteur. Vous pouvez agir sur la maison,
           pas la casser.
         </p>
-        <a class="btn" id="enter" href="#" aria-disabled="true">Ouvrir Sowel</a>
+        <a class="btn" id="enter" href="#" aria-disabled="true">Entrer dans la démo</a>
         <p class="status" id="status">Connexion…</p>
       </div>
 
       <div class="card">
-        <h2>La maison en 3D <span class="badge">premier jet</span></h2>
+        <h2>Sowel et la maison, côte à côte</h2>
         <p>
-          La même maison, rendue en trois dimensions et pilotée par le même Sowel. Pour l'instant
-          elle se regarde : cliquer dedans viendra.
+          La démo s'ouvre avec l'interface Sowel à gauche et la maison en 3D à droite : ce que vous
+          faites d'un côté se voit de l'autre. Glissez la séparation pour donner plus de place à
+          l'une ou à l'autre. Pour l'instant la 3D se regarde : cliquer dedans viendra.
         </p>
-        <a class="btn" id="house3d" href="/maison/">Ouvrir la maison →</a>
+        <p class="alt">
+          Ou séparément : <a href="/">Sowel seul</a> · <a href="/maison/">la maison 3D seule</a>
+        </p>
       </div>
 
       <div class="card">
@@ -256,8 +266,8 @@
         statusEl.dataset.state = "";
         statusEl.textContent = "Vous êtes connecté en tant que visiteur.";
         enterEl.setAttribute("aria-disabled", "false");
-        enterEl.href = "/";
-        enterEl.textContent = "Ouvrir Sowel →";
+        enterEl.href = "/demo/";
+        enterEl.textContent = "Entrer dans la démo →";
 
         try {
           const res = await fetch("/api/v1/health");

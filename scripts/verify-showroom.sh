@@ -16,6 +16,8 @@
 #                  reads its column list from the first row (mchacher/sowel#939)
 #   the guest      a deny list asserted in a config file and never exercised is a
 #                  comment
+#   framing        the side-by-side page needs Sowel framable by this origin, and
+#                  that relaxation must never widen to any origin
 set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
@@ -154,6 +156,24 @@ for e in d:
   code=$(api PUT /api/v1/me/preferences '{"preferences":{"language":"en"}}' "$guest")
   [ "$code" != "403" ] || fail "the deny list also caught /me/preferences, one path away"
   [ "$code" != "403" ] && ok "/me/preferences still reaches Sowel (HTTP $code)"
+fi
+
+# ── framing ───────────────────────────────────────────────────────────────────
+# /demo/ frames the Sowel UI, which Sowel forbids; the proxy rewrites that to this
+# origin only. Both halves are checked: that the side-by-side page can work, and
+# that the relaxation stopped at 'self' — a policy that let any site frame the demo
+# would be a clickjacking invitation on a public host.
+headers=$(curl -sS -D- -o /dev/null --max-time 10 -H 'Cookie: showroom=entered' \
+  "${PUBLIC_ORIGIN}/dashboard" | tr -d '\r')
+# Stripped by prefix, not split on ": " — the policy itself contains `data: blob:`.
+xfo=$(printf '%s\n' "$headers" | sed -n 's/^[Xx]-[Ff]rame-[Oo]ptions: //p')
+fa=$(printf '%s\n' "$headers" | sed -n 's/^[Cc]ontent-[Ss]ecurity-[Pp]olicy: //p' |
+  tr ';' '\n' | sed -n 's/^ *frame-ancestors //p')
+demo=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "${PUBLIC_ORIGIN}/demo/")
+if [ "$xfo" = "SAMEORIGIN" ] && [ "$fa" = "'self'" ] && [ "$demo" = "200" ]; then
+  ok "Sowel framable by this origin only, /demo/ served"
+else
+  fail "framing: X-Frame-Options=${xfo:-none}, frame-ancestors=${fa:-none}, /demo/ HTTP $demo (want SAMEORIGIN, 'self', 200)"
 fi
 
 if [ "$failures" -gt 0 ]; then
