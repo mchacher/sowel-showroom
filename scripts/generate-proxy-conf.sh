@@ -181,6 +181,10 @@ server {
     # Framed by the vignette over the Sowel UI, on this origin; by no other site.
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header Content-Security-Policy "frame-ancestors 'self'" always;
+    # Revalidated on every load: a browser holding yesterday's page keeps loading
+    # yesterday's bundle, and a fix that does not show is reported as not done.
+    # Cheap — an unchanged file answers 304 on its ETag.
+    add_header Cache-Control "no-cache" always;
   }
   location = /maison {
     return 302 /maison/;
