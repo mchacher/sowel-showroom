@@ -129,8 +129,8 @@ server {
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header Connection "";
     # Same vignette as in `location /` below.
-    # The 3D house, floating over the product UI: a vignette that follows what a
-    # person acts on (landing/showroom-ui/mini-house.js). Injected as a same-origin
+    # The 3D house, floating over the product UI: a vignette showing the house as
+    # it reacts (landing/showroom-ui/mini-house.js). Injected as a same-origin
     # script, which the UI's CSP allows where it allows no inline one; the image
     # stays the published one, and so do its headers — Sowel itself is never framed,
     # only the 3D app inside it.
@@ -261,8 +261,8 @@ server {
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header Connection "";
-    # The 3D house, floating over the product UI: a vignette that follows what a
-    # person acts on (landing/showroom-ui/mini-house.js). Injected as a same-origin
+    # The 3D house, floating over the product UI: a vignette showing the house as
+    # it reacts (landing/showroom-ui/mini-house.js). Injected as a same-origin
     # script, which the UI's CSP allows where it allows no inline one; the image
     # stays the published one, and so do its headers — Sowel itself is never framed,
     # only the 3D app inside it.

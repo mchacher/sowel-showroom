@@ -6,9 +6,10 @@
 // <style> element, which its `style-src 'unsafe-inline'` allows.
 //
 // What it is: a small window, bottom right, holding the 3D app in its mini mode
-// (`/maison/?mini=1`), which flies its camera to whatever a person acts on. So a
-// visitor switches on a lamp in Sowel and watches the room light up, without two
-// apps squeezed side by side. The window can be dragged by its bar, resized from
+// (`/maison/?mini=1`): the house from outside, reacting as it happens. So a visitor
+// switches on the garden lights in Sowel and watches them come on, without two apps
+// squeezed side by side. The camera stays put — it used to fly to whatever was
+// clicked, and a view that lurched on every click was harder to watch. The window can be dragged by its bar, resized from
 // its top-left corner, reduced to a pill, or opened full screen over the page —
 // without leaving Sowel or reloading the 3D, and back with the same button or Esc.
 // Where it is and how big is remembered per browser; full screen is not, so a
