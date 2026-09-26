@@ -75,18 +75,6 @@ map $cookie_showroom $root_target {
   "entered" "@app";
 }
 
-# Sowel refuses to be framed at all (`frame-ancestors 'none'`, and
-# `X-Frame-Options: DENY`). The side-by-side page at /demo/ frames it from this
-# same origin, so the proxy rewrites that one directive to 'self' and leaves the
-# rest of Sowel's policy exactly as Sowel sent it — rewritten rather than
-# replaced, so a policy that changes upstream is not silently frozen here. A
-# third-party site still cannot frame the demo. A response with no policy gets
-# none (an empty value adds no header).
-map $upstream_http_content_security_policy $showroom_csp {
-  "~^(?<csp_before>.*)frame-ancestors 'none'(?<csp_after>.*)$" "${csp_before}frame-ancestors 'self'${csp_after}";
-  default $upstream_http_content_security_policy;
-}
-
 # What a visitor may not do. Generated from scripts/deny-list.txt.
 map "$request_method:$uri" $denied {
   default 0;
@@ -140,22 +128,15 @@ server {
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header Connection "";
-    # Same link as in `location /` below.
-    # The way to the 3D house, from anywhere in the product UI. The only link to it
-    # used to be on the landing page, which a visitor never sees again once in: `/`
-    # is the dashboard from then on, and the 3D view was a URL nobody was told.
-    # Injected here rather than built into Sowel — the image stays the published
-    # one. A plain link with inline styles, because the UI's CSP allows inline
-    # styles and no inline script; "3D" reads the same in both languages. Low on
-    # the right, clear of the PWA install banner.
+    # Same vignette as in `location /` below.
+    # The 3D house, floating over the product UI: a vignette that follows what a
+    # person acts on (landing/showroom-ui/mini-house.js). Injected as a same-origin
+    # script, which the UI's CSP allows where it allows no inline one; the image
+    # stays the published one, and so do its headers — Sowel itself is never framed,
+    # only the 3D app inside it.
     proxy_set_header Accept-Encoding "";
     sub_filter_once on;
-    sub_filter '</body>' '<a id="showroom-3d" href="/demo/" target="_top" title="Sowel et la maison 3D côte à côte · Sowel and the 3D house side by side" style="position:fixed;right:20px;bottom:96px;z-index:2147483000;display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:999px;background:#1A4F6E;color:#fff;font:600 14px Inter,system-ui,sans-serif;text-decoration:none;box-shadow:0 6px 20px rgba(20,65,89,.35)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="M3 7l9 5 9-5M12 12v10"/></svg>3D</a><script src="/demo/nav.js"></script></body>';
-    # Framable by this origin only, for /demo/: see the map at the top.
-    proxy_hide_header X-Frame-Options;
-    proxy_hide_header Content-Security-Policy;
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header Content-Security-Policy $showroom_csp always;
+    sub_filter '</body>' '<script src="/showroom-ui/mini-house.js"></script></body>';
   }
 
   # The page's own assets, and the guest credentials the reset writes.
@@ -181,16 +162,12 @@ server {
     add_header Service-Worker-Allowed "/" always;
   }
 
-  # --- Side by side -----------------------------------------------------
-  # Sowel on one side, the 3D house on the other, the divider where the visitor
-  # drags it. A static page composing two iframes on this origin; neither app
-  # knows it is framed, beyond Sowel's headers being relaxed to 'self' above.
-  location /demo/ {
+  # --- What the proxy adds to the product UI ----------------------------
+  # The vignette's script. `no-cache` rather than `no-store`: every page of the
+  # interface loads it, and a revalidation is enough to pick up a new version.
+  location /showroom-ui/ {
     root /usr/share/nginx/html;
-    add_header Cache-Control "no-store";
-  }
-  location = /demo {
-    return 302 /demo/;
+    add_header Cache-Control "no-cache";
   }
 
   # --- The 3D house ------------------------------------------------------
@@ -201,6 +178,9 @@ server {
   location /maison/ {
     alias /usr/share/nginx/house3d/;
     try_files $uri $uri/ /maison/index.html;
+    # Framed by the vignette over the Sowel UI, on this origin; by no other site.
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header Content-Security-Policy "frame-ancestors 'self'" always;
   }
   location = /maison {
     return 302 /maison/;
@@ -281,21 +261,14 @@ server {
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header Connection "";
-    # The way to the 3D house, from anywhere in the product UI. The only link to it
-    # used to be on the landing page, which a visitor never sees again once in: `/`
-    # is the dashboard from then on, and the 3D view was a URL nobody was told.
-    # Injected here rather than built into Sowel — the image stays the published
-    # one. A plain link with inline styles, because the UI's CSP allows inline
-    # styles and no inline script; "3D" reads the same in both languages. Low on
-    # the right, clear of the PWA install banner.
+    # The 3D house, floating over the product UI: a vignette that follows what a
+    # person acts on (landing/showroom-ui/mini-house.js). Injected as a same-origin
+    # script, which the UI's CSP allows where it allows no inline one; the image
+    # stays the published one, and so do its headers — Sowel itself is never framed,
+    # only the 3D app inside it.
     proxy_set_header Accept-Encoding "";
     sub_filter_once on;
-    sub_filter '</body>' '<a id="showroom-3d" href="/demo/" target="_top" title="Sowel et la maison 3D côte à côte · Sowel and the 3D house side by side" style="position:fixed;right:20px;bottom:96px;z-index:2147483000;display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:999px;background:#1A4F6E;color:#fff;font:600 14px Inter,system-ui,sans-serif;text-decoration:none;box-shadow:0 6px 20px rgba(20,65,89,.35)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="M3 7l9 5 9-5M12 12v10"/></svg>3D</a><script src="/demo/nav.js"></script></body>';
-    # Framable by this origin only, for /demo/: see the map at the top.
-    proxy_hide_header X-Frame-Options;
-    proxy_hide_header Content-Security-Policy;
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header Content-Security-Policy $showroom_csp always;
+    sub_filter '</body>' '<script src="/showroom-ui/mini-house.js"></script></body>';
   }
 }
 FOOTER
