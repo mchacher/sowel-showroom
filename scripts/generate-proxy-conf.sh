@@ -83,6 +83,11 @@ HEADER
   cat <<'FOOTER'
 }
 
+# `$host` drops the port, and the core's WebSocket allows an Origin when its host
+# matches the Host header it was reached on — so `Host: localhost` against
+# `Origin: http://localhost:8080` is not the same origin and the socket is refused
+# with "Origin not allowed", after a successful 101. `$http_host` is what the
+# browser actually sent, port and all.
 upstream sowel {
   server sowel:3000;
   keepalive 16;
@@ -95,6 +100,12 @@ server {
   # A visitor's own doing is their business; the access log is not a visitor log.
   access_log /var/log/nginx/access.log combined;
   client_max_body_size 2m;
+
+  # Every redirect this server issues is built from `$host`, which drops the port —
+  # so `/maison` sent a browser to `http://localhost/maison/`, a host that is not
+  # this one. Relative redirects carry no host at all and are therefore always
+  # right, whatever port, tunnel or domain the visitor arrived through.
+  absolute_redirect off;
 
   # --- The root, and the landing page -------------------------------------
   # Served from the proxy so the page works before Sowel is up, which is exactly
@@ -112,11 +123,20 @@ server {
   location @app {
     proxy_pass http://sowel;
     proxy_http_version 1.1;
-    proxy_set_header Host $host;
+    proxy_set_header Host $http_host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header Connection "";
+    # Same vignette as in `location /` below.
+    # The 3D house, floating over the product UI: a vignette showing the house as
+    # it reacts (landing/showroom-ui/mini-house.js). Injected as a same-origin
+    # script, which the UI's CSP allows where it allows no inline one; the image
+    # stays the published one, and so do its headers — Sowel itself is never framed,
+    # only the 3D app inside it.
+    proxy_set_header Accept-Encoding "";
+    sub_filter_once on;
+    sub_filter '</body>' '<script src="/showroom-ui/mini-house.js"></script></body>';
   }
 
   # The page's own assets, and the guest credentials the reset writes.
@@ -125,11 +145,74 @@ server {
     add_header Cache-Control "no-store";
   }
 
+  # --- The service worker the image ships, replaced by one that does nothing --
+  # The PWA's worker is registered at scope "/" with `navigateFallback:
+  # "/index.html"`, which means it answers *every* navigation on this origin from
+  # the cached Sowel shell. /maison/ therefore never reached nginx: the browser
+  # served the Sowel interface, whose router does not know that path and sent the
+  # visitor to /login. Proven with a real browser — asking for /maison/ landed on
+  # /dashboard, and nothing in the access log, because the network was never asked.
+  #
+  # `no-store` matters: a worker script the browser is allowed to cache is a worker
+  # that cannot be replaced.
+  location = /sw.js {
+    root /usr/share/nginx/html;
+    try_files /sw.js =404;
+    add_header Cache-Control "no-store" always;
+    add_header Service-Worker-Allowed "/" always;
+  }
+
+  # --- What the proxy adds to the product UI ----------------------------
+  # The vignette's script. `no-cache` rather than `no-store`: every page of the
+  # interface loads it, and a revalidation is enough to pick up a new version.
+  location /showroom-ui/ {
+    root /usr/share/nginx/html;
+    add_header Cache-Control "no-cache";
+  }
+
+  # --- The 3D house ------------------------------------------------------
+  # Served from this origin on purpose: the landing page's session lives in
+  # localStorage, which is per-origin, so putting the app anywhere else would mean
+  # a second login. A static build, so no upstream and no API of its own — it talks
+  # to Sowel through /api and /ws above, like any other client.
+  location /maison/ {
+    alias /usr/share/nginx/house3d/;
+    try_files $uri $uri/ /maison/index.html;
+    # Framed by the vignette over the Sowel UI, on this origin; by no other site.
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header Content-Security-Policy "frame-ancestors 'self'" always;
+    # Revalidated on every load: a browser holding yesterday's page keeps loading
+    # yesterday's bundle, and a fix that does not show is reported as not done.
+    # Cheap — an unchanged file answers 304 on its ETag.
+    add_header Cache-Control "no-cache" always;
+  }
+  location = /maison {
+    return 302 /maison/;
+  }
+
   # An explicit way back to the page, for a visitor who wants to start over.
   location = /bienvenue {
     root /usr/share/nginx/html;
     try_files /index.html =404;
     add_header Cache-Control "no-store";
+  }
+
+  # Logging out clears the tokens and leaves the cookie, and the cookie is what
+  # routes `/` to the product UI — so a visitor who signs out lands on Sowel's
+  # login screen, on a shared account whose password they were never given, with
+  # no way back but a URL nobody told them about. Clearing the cookie with the
+  # session sends them to the landing page instead, which logs them straight back
+  # in. An exact-match location outranks the `/api/` prefix below; everything else
+  # about the request is proxied identically.
+  location = /api/v1/auth/logout {
+    proxy_pass http://sowel;
+    proxy_http_version 1.1;
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Connection "";
+    add_header Set-Cookie "showroom=; path=/; max-age=0; samesite=lax" always;
   }
 
   # --- The API -----------------------------------------------------------
@@ -151,7 +234,7 @@ server {
 
     proxy_pass http://sowel;
     proxy_http_version 1.1;
-    proxy_set_header Host $host;
+    proxy_set_header Host $http_host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
@@ -167,7 +250,7 @@ server {
     proxy_http_version 1.1;
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection "upgrade";
-    proxy_set_header Host $host;
+    proxy_set_header Host $http_host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_read_timeout 3600s;
     proxy_send_timeout 3600s;
@@ -177,11 +260,19 @@ server {
   location / {
     proxy_pass http://sowel;
     proxy_http_version 1.1;
-    proxy_set_header Host $host;
+    proxy_set_header Host $http_host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header Connection "";
+    # The 3D house, floating over the product UI: a vignette showing the house as
+    # it reacts (landing/showroom-ui/mini-house.js). Injected as a same-origin
+    # script, which the UI's CSP allows where it allows no inline one; the image
+    # stays the published one, and so do its headers — Sowel itself is never framed,
+    # only the 3D app inside it.
+    proxy_set_header Accept-Encoding "";
+    sub_filter_once on;
+    sub_filter '</body>' '<script src="/showroom-ui/mini-house.js"></script></body>';
   }
 }
 FOOTER

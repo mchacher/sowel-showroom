@@ -35,6 +35,44 @@ Settled in discussion; the phase specs do not reopen them.
 | 3D construction          | **Procedural** walls from a plan JSON + **CC0 low-poly furniture** (Kenney, Quaternius, Poly Pizza) + Sowel palette | No Blender skill required, everything data-driven, stylised rather than pseudo-realistic. The prototype in `sowel-house-3d/prototype/` validated the look.                            |
 | Solar panels             | On the roof, so the house gets a roof — **later phase**                                                             | Requested; not needed to validate the rest.                                                                                                                                           |
 
+### Amendment, 2026-09-11 — the demo house is a pavilion
+
+The fixture is a real house: four levels, a cellar and a workshop under the garage,
+two children's rooms on a second floor. Phase 3 drew it and found a tower nobody can
+read — the storey above hides the one below whichever way it is shown. Decision: **a
+simple house**, a ground floor and one storey, the garage attached at the side with a
+door worth showing, laid out the way a French pavilion is. The 3D plan is the drawing
+of it (sowel-house-3d spec 002); the simulator reshapes the fixture to the same
+fourteen rooms and carries the plan's areas and orientations (sowel-plugin-simulator
+0.3.0, spec 003 amendment). Fewer equipments — the cellar's and workshop's six — and
+that is accepted. "Pure simulator, no production mirror" stands: the mirror was never
+the point, and this is where it stops being one in shape as well as in data.
+
+### Amendment, 2026-09-26 — the house over Sowel, and the way of working
+
+**A vignette, not side by side.** The owner asked to watch the house react while
+using Sowel. Sowel and the 3D house side by side, with a divider, was built and
+tried on the running demo; it needed Sowel framed, relaxing the image's
+`frame-ancestors 'none'`, and the owner found it looked poor. What stayed is a
+vignette: the house small in a corner of every Sowel page, injected by the proxy,
+full screen and back without leaving Sowel (showroom spec 002, house-3d spec 003).
+Only the house is framed; Sowel's framing is the image's again. The camera stays
+where the visitor put it — flying it to whatever changed lurched on every click.
+
+**Every storey at once.** Phase 3's "one level at a time" is superseded by house-3d
+spec 002: every storey built and stacked, the one being read solid and the rest
+ghosted, the roof on from outside.
+
+**Phase 6 partly pulled forward.** The roof, the solar panels, furniture, joinery
+and the pool's water were done on the owner's reviews of the demo, and are on
+record as amendments to house-3d spec 002. Faults, shared ghosts and weather
+visuals remain phase 6.
+
+**Specs first again.** Much of the above was built at the screen and specified
+after the fact (2026-09-26). From here, each phase or change of behaviour starts
+with its spec, validated before code; a fix to a behaviour already specified is a
+`fix` against that spec.
+
 ## Rejected alternatives (so they are not re-litigated)
 
 Each of these was considered and turned down. Reopening one is allowed; doing it
@@ -339,7 +377,7 @@ would, and would need the table amended with it.
 
 ## Out of scope (recorded so it is not lost)
 
-- Solar panels on the roof, and the roof itself (asked for; last phase).
+- ~~Solar panels on the roof, and the roof itself~~ — done early, in house-3d spec 002.
 - Ghosts visible to all visitors (needs a relay; v2 of the 3D app).
 - Simulated hardware faults (staleness, offline devices, alarms) — a good later demo of spec 116 and the alarm surfaces.
 - A floor-plan editor; the plan is a JSON edited by hand.
@@ -364,15 +402,15 @@ into each repository's feature skill: to 🚧 when a phase's spec is written, to
 when its last pull request merges. Each repository's own `docs/specs-index.md`
 carries the detail below a phase, and is CI-gated there.
 
-| Phase | Repository               | What                                                                                                                                                                                                                                                                                                                                                                                                                                | Status                              |
-| ----- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
-| 0     | `sowel` (core)           | Standard users activate modes ([#912](https://github.com/mchacher/sowel/issues/912), shipped in [#916](https://github.com/mchacher/sowel/pull/916))                                                                                                                                                                                                                                                                                 | ✅ Done                             |
-| 1     | `sowel-plugin-simulator` | World model, devices, orders, `sim.*`, fixture remap — three specs: [001 the house that lives](https://github.com/mchacher/sowel-plugin-simulator/tree/main/specs/001-world-model) ✅, [002 the house that obeys](https://github.com/mchacher/sowel-plugin-simulator/tree/main/specs/002-orders) ✅, [003 the demo house](https://github.com/mchacher/sowel-plugin-simulator/tree/main/specs/003-fixture) 📝 (three open decisions) | 🚧 In progress                      |
-| 2     | `sowel-showroom`         | Compose, proxy, reset, demo fixture, landing page — [spec 001](specs/001-showroom-stack/)                                                                                                                                                                                                                                                                                                                                           | ✅ Done                             |
-| 3     | `sowel-house-3d`         | Plan, mapping, REST + WS, read-only scene — [spec 001](https://github.com/mchacher/sowel-house-3d/tree/main/specs/001-read-only-scene)                                                                                                                                                                                                                                                                                              | ✅ Done (the look is a first draft) |
-| 4     | `sowel-house-3d`         | Clicks, own ghost, journal, visitor count, mobile                                                                                                                                                                                                                                                                                                                                                                                   | 📝 To do                            |
-| 5     | `sowel-showroom`         | VM, tunnel, `demo.sowel.org`, links, reset monitoring                                                                                                                                                                                                                                                                                                                                                                               | 📝 To do                            |
-| 6     | all                      | Roof and solar panels, furniture, faults, shared ghosts                                                                                                                                                                                                                                                                                                                                                                             | 📝 To do                            |
+| Phase | Repository               | What                                                                                                                                                                                                                                                                                                                                                                                                                                           | Status         |
+| ----- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| 0     | `sowel` (core)           | Standard users activate modes ([#912](https://github.com/mchacher/sowel/issues/912), shipped in [#916](https://github.com/mchacher/sowel/pull/916))                                                                                                                                                                                                                                                                                            | ✅ Done        |
+| 1     | `sowel-plugin-simulator` | World model, devices, orders, `sim.*`, fixture remap — three specs: [001 the house that lives](https://github.com/mchacher/sowel-plugin-simulator/tree/main/specs/001-world-model) ✅, [002 the house that obeys](https://github.com/mchacher/sowel-plugin-simulator/tree/main/specs/002-orders) ✅, [003 the demo house](https://github.com/mchacher/sowel-plugin-simulator/tree/main/specs/003-fixture) ✅ — released as 0.3.0, the pavilion | ✅ Done        |
+| 2     | `sowel-showroom`         | Compose, proxy, reset, demo fixture, landing page — [spec 001](specs/001-showroom-stack/) ✅; the 3D house served here and in a vignette over Sowel — [spec 002](specs/002-the-house-over-sowel/) ✅                                                                                                                                                                                                                                           | ✅ Done        |
+| 3     | `sowel-house-3d`         | Plan, mapping, REST + WS, read-only scene — [spec 001](https://github.com/mchacher/sowel-house-3d/tree/main/specs/001-read-only-scene) ✅, [002 a house worth looking at](https://github.com/mchacher/sowel-house-3d/tree/main/specs/002-a-house-worth-looking-at) ✅, [003 the house beside Sowel](https://github.com/mchacher/sowel-house-3d/tree/main/specs/003-beside-sowel) ✅                                                            | ✅ Done        |
+| 4     | `sowel-house-3d`         | Clicks, own ghost, journal, visitor count, mobile                                                                                                                                                                                                                                                                                                                                                                                              | 📝 To do       |
+| 5     | `sowel-showroom`         | VM, tunnel, `demo.sowel.org`, links, reset monitoring                                                                                                                                                                                                                                                                                                                                                                                          | 📝 To do       |
+| 6     | all                      | Roof and solar panels, furniture — done early, in house-3d spec 002 ✅. Faults, shared ghosts, weather visuals remain                                                                                                                                                                                                                                                                                                                          | 🚧 Partly done |
 
 Status: 📝 To do · 🚧 In progress · ✅ Done
 

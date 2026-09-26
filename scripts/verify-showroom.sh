@@ -16,6 +16,8 @@
 #                  reads its column list from the first row (mchacher/sowel#939)
 #   the guest      a deny list asserted in a config file and never exercised is a
 #                  comment
+#   framing        the vignette frames the 3D app inside Sowel: the 3D must be
+#                  framable by this origin and no other, and Sowel itself by none
 set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
@@ -154,6 +156,30 @@ for e in d:
   code=$(api PUT /api/v1/me/preferences '{"preferences":{"language":"en"}}' "$guest")
   [ "$code" != "403" ] || fail "the deny list also caught /me/preferences, one path away"
   [ "$code" != "403" ] && ok "/me/preferences still reaches Sowel (HTTP $code)"
+fi
+
+# ── framing ───────────────────────────────────────────────────────────────────
+# The vignette puts the 3D app in an iframe inside the Sowel UI. That needs the 3D
+# framable by this origin, and nothing more: Sowel keeps refusing every frame, as
+# it ships, and neither may be framed by another site — on a public host that
+# would be a clickjacking invitation. The script itself must reach the UI too, or
+# the vignette silently never appears.
+headers_of() {
+  curl -sS -D- -o /dev/null --max-time 10 -H 'Cookie: showroom=entered' "${PUBLIC_ORIGIN}$1" | tr -d '\r'
+}
+# Stripped by prefix, not split on ": " — Sowel's policy itself contains `data: blob:`.
+frame_ancestors() {
+  sed -n 's/^[Cc]ontent-[Ss]ecurity-[Pp]olicy: //p' | tr ';' '\n' | sed -n 's/^ *frame-ancestors //p'
+}
+ui_fa=$(headers_of /dashboard | frame_ancestors)
+house_fa=$(headers_of /maison/ | frame_ancestors)
+injected=$(curl -sS --max-time 10 -H 'Cookie: showroom=entered' "${PUBLIC_ORIGIN}/dashboard" |
+  grep -c 'src="/showroom-ui/mini-house.js"' || true)
+script=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "${PUBLIC_ORIGIN}/showroom-ui/mini-house.js")
+if [ "$ui_fa" = "'none'" ] && [ "$house_fa" = "'self'" ] && [ "$injected" = "1" ] && [ "$script" = "200" ]; then
+  ok "3D framable by this origin only, Sowel by none, vignette injected"
+else
+  fail "framing: Sowel frame-ancestors=${ui_fa:-none} (want 'none'), 3D=${house_fa:-none} (want 'self'), vignette injected=$injected, script HTTP $script"
 fi
 
 if [ "$failures" -gt 0 ]; then

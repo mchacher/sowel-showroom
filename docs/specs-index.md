@@ -10,13 +10,10 @@ phases, and the decisions behind the whole project, are in
 
 Status: 📝 Draft · 🚧 In progress · ✅ Shipped
 
-| #   | Title              | Status | Summary                                                                                                                                               |
-| --- | ------------------ | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 001 | The showroom stack | ✅     | Phase 2. Compose, the nginx proxy with its derived deny list and quotas, the one-command reset that verifies rather than hopes, and the landing page. |
-
-_No spec yet. The compose stack, the proxy and the reset script are phase 2 of
-the project map; write them with the `showroom-feature` skill, which creates the
-folder and the row together._
+| #   | Title                | Status | Summary                                                                                                                                                                |
+| --- | -------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 001 | The showroom stack   | ✅     | Phase 2. Compose, the nginx proxy with its derived deny list and quotas, the one-command reset that verifies rather than hopes, and the landing page.                  |
+| 002 | The house over Sowel | ✅     | The 3D house served from the same origin, a vignette over the Sowel interface injected by the proxy, a neutral service worker, and the four bugs only a browser found. |
 
 ## How to use this index after context loss
 
