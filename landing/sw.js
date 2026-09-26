@@ -32,9 +32,12 @@ self.addEventListener("activate", (event) => {
       await Promise.all(names.map((name) => caches.delete(name)));
       await self.clients.claim();
 
-      // The page that is open right now was very likely served from the cache by
-      // the worker this one replaces. Reloading it once is what turns "clear your
-      // site data" into something a visitor never has to hear.
+      // Only a browser the old worker had reached has caches to delete, and only
+      // there was the open page served from them. Reloading it once is what turns
+      // "clear your site data" into something a visitor never has to hear. A
+      // first-time visitor has no caches and no stale page: reloading theirs
+      // anyway threw away the dashboard they had just opened, and any click with it.
+      if (names.length === 0) return;
       const windows = await self.clients.matchAll({ type: "window" });
       for (const client of windows) {
         // `navigate` rejects for a client this worker does not control, and a

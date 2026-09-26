@@ -128,6 +128,17 @@ server {
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header Connection "";
+    # Same link as in `location /` below.
+    # The way to the 3D house, from anywhere in the product UI. The only link to it
+    # used to be on the landing page, which a visitor never sees again once in: `/`
+    # is the dashboard from then on, and the 3D view was a URL nobody was told.
+    # Injected here rather than built into Sowel — the image stays the published
+    # one. A plain link with inline styles, because the UI's CSP allows inline
+    # styles and no inline script; "3D" reads the same in both languages. Low on
+    # the right, clear of the PWA install banner.
+    proxy_set_header Accept-Encoding "";
+    sub_filter_once on;
+    sub_filter '</body>' '<a href="/maison/" title="Vue 3D de la maison · 3D view of the house" style="position:fixed;right:20px;bottom:96px;z-index:2147483000;display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:999px;background:#1A4F6E;color:#fff;font:600 14px Inter,system-ui,sans-serif;text-decoration:none;box-shadow:0 6px 20px rgba(20,65,89,.35)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="M3 7l9 5 9-5M12 12v10"/></svg>3D</a></body>';
   }
 
   # The page's own assets, and the guest credentials the reset writes.
@@ -241,6 +252,16 @@ server {
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header Connection "";
+    # The way to the 3D house, from anywhere in the product UI. The only link to it
+    # used to be on the landing page, which a visitor never sees again once in: `/`
+    # is the dashboard from then on, and the 3D view was a URL nobody was told.
+    # Injected here rather than built into Sowel — the image stays the published
+    # one. A plain link with inline styles, because the UI's CSP allows inline
+    # styles and no inline script; "3D" reads the same in both languages. Low on
+    # the right, clear of the PWA install banner.
+    proxy_set_header Accept-Encoding "";
+    sub_filter_once on;
+    sub_filter '</body>' '<a href="/maison/" title="Vue 3D de la maison · 3D view of the house" style="position:fixed;right:20px;bottom:96px;z-index:2147483000;display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:999px;background:#1A4F6E;color:#fff;font:600 14px Inter,system-ui,sans-serif;text-decoration:none;box-shadow:0 6px 20px rgba(20,65,89,.35)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="M3 7l9 5 9-5M12 12v10"/></svg>3D</a></body>';
   }
 }
 FOOTER
