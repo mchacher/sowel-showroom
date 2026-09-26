@@ -9,8 +9,10 @@
 // (`/maison/?mini=1`), which flies its camera to whatever a person acts on. So a
 // visitor switches on a lamp in Sowel and watches the room light up, without two
 // apps squeezed side by side. The window can be dragged by its bar, resized from
-// its top-left corner, reduced to a pill, or opened full screen; where it is and how
-// big is remembered per browser.
+// its top-left corner, reduced to a pill, or opened full screen over the page —
+// without leaving Sowel or reloading the 3D, and back with the same button or Esc.
+// Where it is and how big is remembered per browser; full screen is not, so a
+// reload never lands anyone in a view that covers the interface.
 //
 // Reduced, the iframe is removed rather than hidden: a WebGL scene rendering at
 // sixty frames a second behind a pill is a phone's battery for nothing.
@@ -33,8 +35,20 @@
       ? "en"
       : "fr";
   const T = {
-    fr: { title: "Maison 3D", full: "Plein écran", reduce: "Réduire", open: "Afficher la maison en 3D" },
-    en: { title: "3D house", full: "Full screen", reduce: "Minimise", open: "Show the house in 3D" },
+    fr: {
+      title: "Maison 3D",
+      full: "Plein écran",
+      back: "Revenir en vignette (Échap)",
+      reduce: "Réduire",
+      open: "Afficher la maison en 3D",
+    },
+    en: {
+      title: "3D house",
+      full: "Full screen",
+      back: "Back to the vignette (Esc)",
+      reduce: "Minimise",
+      open: "Show the house in 3D",
+    },
   }[lang];
 
   const defaults = () => ({
@@ -79,6 +93,13 @@
     #sm-pill { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border: 0; border-radius: 999px;
       background: #1a4f6e; color: #fff; cursor: pointer; box-shadow: 0 6px 20px rgba(20,65,89,.35); }
     #sm-pill:hover { background: #144159; }
+    /* Full screen: over the whole page, a margin and a dimmed backdrop so it still
+       reads as a window over Sowel rather than a different site. */
+    #sm-window.full { top: 12px !important; right: 12px !important; bottom: 12px !important;
+      left: 12px !important; width: auto !important; height: auto !important;
+      box-shadow: 0 0 0 100vmax rgba(10,30,45,.38), 0 18px 48px rgba(20,65,89,.4); }
+    #sm-window.full #sm-bar { cursor: default; }
+    #sm-window.full #sm-grip { display: none; }
   `;
   document.head.appendChild(style);
 
@@ -86,6 +107,7 @@
     '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="M3 7l9 5 9-5M12 12v10"/></svg>';
   const icon = {
     full: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"/></svg>',
+    back: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M10 14l-7 7"/></svg>',
     reduce:
       '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 12h14"/></svg>',
   };
@@ -123,6 +145,27 @@
   };
 
   let frame = null;
+  let full = false;
+
+  // The 3D app reads its `#full` anchor: small without it, the full HUD with it.
+  // Setting the anchor of a same-origin frame reloads nothing.
+  const tell = () => {
+    try {
+      if (frame?.contentWindow) frame.contentWindow.location.hash = full ? "full" : "";
+    } catch {
+      /* not loaded yet: it starts small, which is what `full = false` means */
+    }
+  };
+  const setFull = (next) => {
+    full = next;
+    win.classList.toggle("full", full);
+    const button = win.querySelector('[data-act="full"]');
+    button.innerHTML = full ? icon.back : icon.full;
+    button.title = full ? T.back : T.full;
+    button.setAttribute("aria-label", button.title);
+    tell();
+  };
+
   const render = () => {
     const signedIn = Boolean(read("sowel_access_token"));
     const mounted = win.isConnected || pill.isConnected;
@@ -143,6 +186,7 @@
       }
       if (!win.isConnected) document.body.appendChild(win);
     } else {
+      if (full) setFull(false);
       frame?.remove();
       frame = null;
       win.remove();
@@ -156,8 +200,9 @@
     save();
     render();
   });
-  win.querySelector('[data-act="full"]').addEventListener("click", () => {
-    location.href = "/maison/";
+  win.querySelector('[data-act="full"]').addEventListener("click", () => setFull(!full));
+  addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && full) setFull(false);
   });
   pill.addEventListener("click", () => {
     state.open = true;
@@ -169,7 +214,7 @@
   // right, so growing it up and left is what keeps its anchor still.
   const track = (handle, onMove) => {
     handle.addEventListener("pointerdown", (event) => {
-      if (event.target.closest("button")) return;
+      if (full || event.target.closest("button")) return;
       handle.setPointerCapture(event.pointerId);
       const start = { x: event.clientX, y: event.clientY, ...state };
       win.classList.add("busy");
