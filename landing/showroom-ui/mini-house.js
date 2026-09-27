@@ -70,7 +70,8 @@
       readOnly:
         "Démo en lecture seule : tu peux tout regarder, piloter la maison et changer de mode, mais pas modifier la configuration.",
       queued: (n) => `Ton action est dans la file (${n === 1 ? "la prochaine" : `${n}e`}) : regarde la maison.`,
-      presence: "mouvement",
+      presence: "mouvement détecté",
+      cloud: "faire passer un nuage",
       mode: (name, on) => `mode ${name} ${on ? "activé" : "désactivé"}`,
       failed: " (échec)",
       ask: (on) => (on ? "allumer" : "éteindre"),
@@ -107,7 +108,8 @@
       readOnly:
         "Read-only demo: look at everything, drive the house and switch modes, but the configuration stays as it is.",
       queued: (n) => `Your action is queued (${n === 1 ? "next" : `#${n}`}): watch the house.`,
-      presence: "motion",
+      presence: "motion detected",
+      cloud: "make a cloud pass",
       mode: (name, on) => `mode ${name} ${on ? "on" : "off"}`,
       failed: " (failed)",
       ask: (on) => (on ? "turn on" : "turn off"),
@@ -199,7 +201,7 @@
     #sm-stage { position: relative; flex: 1; min-height: 120px; }
     #sm-stage iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; background: #eef5f8; }
     #sm-window.busy iframe { pointer-events: none; }
-    #sm-journal { position: absolute; left: 8px; bottom: 8px; max-width: calc(100% - 16px); width: 290px;
+    #sm-journal { position: absolute; left: 8px; bottom: 8px; max-width: calc(100% - 16px); width: 390px;
       padding: 7px 9px; border-radius: 9px; background: rgba(16,40,58,.82); color: #fff;
       font: 500 11px/1.35 Inter, system-ui, sans-serif; display: flex; flex-direction: column; gap: 3px;
       max-height: 45%; overflow: hidden; cursor: pointer; }
@@ -207,8 +209,8 @@
     /* Full screen, the 3D shows its own room list bottom left: the journal goes right,
        under the sun dial and above the storey switch. On a phone, top left: the storey
        switch holds the bottom. */
-    #sm-window.full #sm-journal { left: auto; right: 16px; top: 170px; bottom: auto; width: 320px; max-height: calc(100% - 260px); }
-    #sm-window.sheet #sm-journal { top: 8px; bottom: auto; width: 64%; max-height: 40%; }
+    #sm-window.full #sm-journal { left: auto; right: 16px; top: 170px; bottom: auto; width: 440px; max-height: calc(100% - 260px); }
+    #sm-window.sheet #sm-journal { top: 8px; bottom: auto; width: 86%; max-height: 40%; }
     #sm-journal .line { display: flex; gap: 7px; }
     #sm-journal time { flex-shrink: 0; color: #9fb6c3; font: 400 10px/1.5 "JetBrains Mono", ui-monospace, monospace; }
     #sm-journal .action { color: #fff; font-weight: 700; }
@@ -503,6 +505,7 @@
   const whatWords = (what) => {
     if (what.kind === "journey") return JOURNEYS[what.journey]?.[lang] ?? what.journey;
     if (what.type === "order") {
+      if (what.alias === "sim.cloud") return T.cloud;
       const on = onOff(what.value);
       return on === null ? `${what.equipment} → ${what.value}` : `${T.ask(on)} ${what.equipment}`;
     }
@@ -513,18 +516,20 @@
   };
   const time = (at) =>
     new Date(at).toLocaleTimeString(lang === "fr" ? "fr-FR" : "en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  // The room first, so a house with twelve "Lumière" reads — except for a journey,
+  // whose own words name where it goes.
   const roomOf = (entry) =>
     entry.kind === "action"
-      ? entry.what.kind === "journey"
-        ? (JOURNEYS[entry.what.journey]?.room?.[lang] ?? JOURNEYS[entry.what.journey]?.zone ?? null)
-        : entry.what.zoneName ?? null
-      : entry.what.zoneName ?? null;
+      ? entry.what.kind === "journey" || entry.what.alias === "sim.cloud"
+        ? null
+        : (entry.what.zoneName ?? null)
+      : (entry.what.zoneName ?? null);
   const journalLine = (entry) => {
     const line = el("div", { class: "line" });
     line.appendChild(el("time", {}, time(entry.at)));
     const text = el("span");
     const room = roomOf(entry);
-    if (room) text.appendChild(el("span", { class: "room" }, `${room} · `));
+    if (room) text.appendChild(el("span", { class: "room" }, `${room} : `));
     if (entry.kind === "action") {
       text.appendChild(
         el(
@@ -538,7 +543,7 @@
       const p = item.message?.params ?? {};
       const template = item.message?.template;
       if (template === "motion.detected") {
-        text.appendChild(document.createTextNode(`${p.equipmentName} : ${T.presence}`));
+        text.appendChild(document.createTextNode(room ? T.presence : `${p.equipmentName} : ${T.presence}`));
       } else if (template === "order.executed") {
         const by = item.source?.recipeName;
         const on = onOff(p.value);
@@ -617,9 +622,14 @@
     );
   };
 
+  // In the order things happened, the newest at the bottom — a walk from the hall to
+  // the bathroom reads top to bottom — scrolled to the end unless the visitor has
+  // scrolled up to read.
   const renderJournal = (view) => {
-    const lines = view.journal.map(journalLine).filter(Boolean);
+    const atEnd = journalBox.scrollHeight - journalBox.scrollTop - journalBox.clientHeight < 8;
+    const lines = view.journal.map(journalLine).filter(Boolean).reverse();
     journalBox.replaceChildren(...(lines.length ? lines : [el("div", { class: "empty" }, T.noJournal)]));
+    if (atEnd || !journalBox.classList.contains("open")) journalBox.scrollTop = journalBox.scrollHeight;
   };
 
   // When an action starts: the 3D walks its figure, the office gets its cold, and
@@ -750,6 +760,25 @@
   place();
   listen();
   if (signedIn()) void readDaylight();
+  // A page that opens has its figure in the street: the visitor's presence left in a
+  // room by the page before would empty that room as the new walk begins — "the
+  // bathroom goes dark" just before the figure walks into it. Sent once, as the
+  // figure's own ghost, which the queue lets straight through.
+  const homeGhost = async () => {
+    try {
+      const ghost = (await api("/api/v1/equipments")).find((e) =>
+        e.orderBindings.some((b) => b.alias === "sim.ghost"),
+      );
+      if (ghost)
+        await api(`/api/v1/equipments/${ghost.id}/orders/sim.ghost`, {
+          method: "POST",
+          body: JSON.stringify({ value: `${visitor}:away` }),
+        });
+    } catch {
+      /* it expires on its own in two minutes */
+    }
+  };
+  if (signedIn()) void homeGhost();
   setInterval(() => signedIn() && readDaylight(), 5 * 60_000);
   // The interface logs in and out without reloading the page; follow it.
   setInterval(() => {
