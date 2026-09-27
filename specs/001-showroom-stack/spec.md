@@ -403,12 +403,11 @@ unchanged.
 
 #### Walked, on the local showroom (2026-09-27)
 
-- **The guest's role is not flipped yet.** Creating the guest as `admin` in
-  `reset.sh` was refused to the agent by its own safety classifier ("permission
-  grant"), so that one line waits for the owner. Everything else is in place and
-  was exercised with the owner's admin account on the public door, which the
-  amendment makes read-only too. Until the line changes, four checks of the reset
-  fail on purpose: the role, and settings, integrations and logs being readable.
+- **The guest's role.** Creating the guest as `admin` in `reset.sh` was refused to
+  the agent by its own safety classifier ("permission grant") until the owner
+  approved that exact change; it went in then. Before, everything else was exercised
+  with the owner's admin account on the public door, which the amendment makes
+  read-only too.
 - **Settings are shown, and carried a secret.** `GET /api/v1/settings` returned a
   `history.influx.token` — a legacy key the core no longer reads, restored from the
   demo fixture, and already public in the core's documentation fixture. The

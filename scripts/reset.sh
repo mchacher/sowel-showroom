@@ -240,11 +240,14 @@ token=$(admin login "$ADMIN_USERNAME" "$ADMIN_PASSWORD")
 ok "$ADMIN_USERNAME"
 
 # ── 4. The guest ──────────────────────────────────────────────────────────────
+# An admin, read-only at the proxy (spec 001, FR2, amended 2026-09-27): the role
+# lets a visitor see every screen, and the public door refuses every write it does
+# not name. The password is public by design; the proxy is what makes that safe.
 step "Creating the guest every visitor is"
 admin api_ok POST /api/v1/users "$(json_body \
     "username=$GUEST_USERNAME" "password=$GUEST_PASSWORD" \
-    "displayName=${GUEST_DISPLAY_NAME:-Visiteur}" "role=standard")" "$token"
-ok "$GUEST_USERNAME (standard)"
+    "displayName=${GUEST_DISPLAY_NAME:-Visiteur}" "role=admin")" "$token"
+ok "$GUEST_USERNAME (admin, read-only at the proxy)"
 
 step "Handing the guest credentials to the landing page"
 mkdir -p landing/showroom
