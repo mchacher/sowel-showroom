@@ -69,18 +69,21 @@ Each visitor sees their own figure. Everybody seeing everybody is a next increme
 - The panel says: the lights came on because recipes saw you, and links to the
   bathroom's page in Sowel.
 - **"Sortir"**: the figure walks back down and out of the front door; the lights go
-  off behind it, a minute after it has left each room.
+  off behind it, seconds after it has left each room (amended 2026-09-27: a minute
+  read as the house not noticing).
 
 This needs, in the demo fixture (simulator spec 003, amended): a motion sensor in the
-bathroom, and a motion-light instance on it — one-minute timeout, no threshold, not
-disabled by daylight.
+bathroom, and a motion-light instance on it — no threshold, not disabled by daylight;
+every plain motion light times out after 5 s, the simulated PIR clears 5 s after a room
+empties, and a ghost sent `away` leaves at once (simulator v0.4.1, specs 001–003
+amended; house-3d spec 005, FR3).
 
 ## Acceptance criteria
 
 - As the guest, in daylight and at night: the figure walks from the front door to the
   bathroom in under twenty seconds, and each light on its way comes on as it enters;
   the bathroom lamp is on when it arrives, in the vignette and in Sowel.
-- "Sortir": the figure walks out; each light goes off within ninety seconds of it
+- "Sortir": the figure walks out; each light goes off within fifteen seconds of it
   leaving the room.
 - Two browsers are two figures and two ghosts: one leaving does not switch the
   other's light off.

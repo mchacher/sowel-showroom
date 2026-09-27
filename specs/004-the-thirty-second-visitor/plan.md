@@ -11,6 +11,8 @@
 
 As the guest on the dashboard: the "Essayer" panel beside the vignette, "Y aller",
 the figure walking in from the street; the hall, stairwell and bathroom lamps come on
-as it enters each, and the bathroom's about two minutes after "Sortir". The panel
+as it enters each, and the bathroom's about two minutes after "Sortir" — then, with
+simulator v0.4.1 (5 s timeouts and PIR hold, the ghost leaving on `away`), ten seconds
+after, measured. The panel
 first opened over the vignette and hid the figure it exists to show: it sits beside
 the vignette now, and in its top-left corner in full screen.
