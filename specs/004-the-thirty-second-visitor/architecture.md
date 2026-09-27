@@ -2,7 +2,7 @@
 
 ```
 Sowel page ── mini-house.js (injected, spec 002)
-               ├── "Essayer" panel ── sets the frame's anchor: #level=1&walk=salle-de-bain
+               ├── "Essayer" panel ── sets the frame's anchor: #walk=salle-de-bain
                └── the vignette (house-3d ?mini=1)
                      ├── the figure walks the plan's door graph, room by room
                      └── on entering each room:

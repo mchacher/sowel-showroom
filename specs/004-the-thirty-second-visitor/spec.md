@@ -61,9 +61,9 @@ Each visitor sees their own figure. Everybody seeing everybody is a next increme
 
 ### FR3 — Increment 1: walk into the bathroom
 
-- **"Entrer dans la salle de bain"**: the vignette turns to the upper storey, the
-  figure appears at the front door and walks to the bathroom — hall, stairs, landing,
-  bathroom — each light coming on as it walks in. In the bathroom, the motion-light
+- **"Entrer dans la salle de bain"**: the figure appears at the front door and walks to the bathroom — hall, stairs, landing,
+  bathroom — each light coming on as it walks in; the view follows it — outside, the ground
+  floor, upstairs — with the storeys it is not on as glass. In the bathroom, the motion-light
   recipe switches the lamp on **whatever the time of day**: no luminosity threshold,
   not disabled by daylight.
 - The panel says: the lights came on because recipes saw you, and links to the

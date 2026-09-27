@@ -144,12 +144,12 @@
   };
 
   // The guided journeys (spec 004): the visitor walks into a room, a recipe sees
-  // them. Data, so an increment is an entry: the room it walks to, the storey to
-  // show, the zone whose page in Sowel shows what happened.
+  // them. Data, so an increment is an entry: the room it walks to and the zone whose
+  // page in Sowel shows what happened. The 3D shows whichever storey the figure is
+  // on as it walks (house-3d spec 005, FR4).
   const JOURNEYS = [
     {
       room: "salle-de-bain",
-      level: 1,
       zone: "Salle de Bain",
       fr: {
         what: "Entrer dans la salle de bain",
@@ -338,7 +338,7 @@
     const line = panel.querySelector(`.journey[data-i="${i}"]`);
     if (go) {
       line.classList.add("walking");
-      tell(`level=${journey.level}&walk=${journey.room}&t=${Date.now()}`);
+      tell(`walk=${journey.room}&t=${Date.now()}`);
     } else {
       line.classList.remove("walking");
       tell(`walk=away&t=${Date.now()}`);
