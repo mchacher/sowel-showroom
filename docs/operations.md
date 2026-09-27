@@ -42,14 +42,26 @@ dark.
 
 ## What the reset does and does not keep
 
-|           |                                                                                                 |
-| --------- | ----------------------------------------------------------------------------------------------- |
-| **Wiped** | SQLite (the whole house: zones, equipments, bindings, recipes, users) and the plugins directory |
-| **Kept**  | InfluxDB                                                                                        |
+|            |                                                                                                                                                                              |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Wiped**  | SQLite (the whole house: zones, equipments, bindings, recipes, users) and the plugins directory                                                                              |
+| **Kept**   | InfluxDB, and the journals no backup carries: the arbiter's decisions, surplus and daily metrics, the activity journal, the recipes' logs (`scripts/lib/journal-tables.txt`) |
+| **Seeded** | Whatever of the last thirty days InfluxDB lacks, computed by the simulator (its spec 004) and restored with the fixture                                                      |
 
-History therefore accrues from launch day and survives every reset. That is a
-decision, not an accident — a demo whose charts are empty every morning shows
-nothing about energy.
+So a fresh instance opens with a month of charts, and every reset after that seeds
+nothing: the history is real from the first live point on (spec 003).
+
+## Before the public link: the burn-in week
+
+The seeded month has energy and sensors, and no arbiter: the arbiter's decisions
+are the product's, and none are invented (spec 003, FR4). So the stack runs on its
+host for **at least seven days before the link goes out**, resetting every night as
+it will in production. Then:
+
+1. `scripts/verify-showroom.sh` — the energy and temperature checks are green;
+2. set `ARBITER_BURNED_IN=1` in `.env` and run it again — the arbiter check now
+   requires six full days of its own in the last seven;
+3. publish the link.
 
 ## When it breaks
 

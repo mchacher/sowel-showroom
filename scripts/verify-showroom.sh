@@ -18,6 +18,9 @@
 #                  comment
 #   framing        the vignette frames the 3D app inside Sowel: the 3D must be
 #                  framable by this origin and no other, and Sowel itself by none
+#   history        the showroom accrued none for weeks and every check was green:
+#                  the plugin's points were refused by InfluxDB and nothing looked
+#                  (spec 003, FR5)
 set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
@@ -180,6 +183,51 @@ if [ "$ui_fa" = "'none'" ] && [ "$house_fa" = "'self'" ] && [ "$injected" = "1" 
   ok "3D framable by this origin only, Sowel by none, vignette injected"
 else
   fail "framing: Sowel frame-ancestors=${ui_fa:-none} (want 'none'), 3D=${house_fa:-none} (want 'self'), vignette injected=$injected, script HTTP $script"
+fi
+
+# ── history ───────────────────────────────────────────────────────────────────
+# As a guest, through the public API: what a visitor's Energy page would show.
+guest=$(login "$GUEST_USERNAME" "$GUEST_PASSWORD")
+energy_days=$(for weeks_back in 0 1 2 3 4 5; do
+  day=$(python3 -c "import datetime as d;print((d.date.today()-d.timedelta(weeks=$weeks_back)).isoformat())")
+  api_ok GET "/api/v1/energy/history?period=week&date=$day" "" "$guest" >/dev/null
+  python3 -c "
+import json, datetime as d
+now = d.datetime.now(d.timezone.utc)
+for p in json.load(open('$API_BODY')).get('points', []):
+    t = d.datetime.fromisoformat(p['time'].replace('Z', '+00:00'))
+    if now - d.timedelta(days=30) <= t < now - d.timedelta(days=1) and (p.get('hp', 0) + p.get('hc', 0)) > 0:
+        print(t.date())
+"
+done | sort -u | wc -l | tr -d ' ')
+[ "$energy_days" -ge 28 ] && ok "energy history on $energy_days of the last 29 whole days" ||
+  fail "energy history on $energy_days of the last 29 whole days — a visitor's month view is empty"
+
+api_ok GET /api/v1/equipments "" "$guest" >/dev/null
+probe=$(python3 -c "
+import json
+for e in json.load(open('$API_BODY')):
+    for b in e.get('dataBindings', []):
+        if b.get('category') == 'temperature' and b.get('alias') == 'temperature':
+            print(e['id'], e['name'].replace(' ', '_')); raise SystemExit
+")
+read -r probe_id probe_name <<<"$probe"
+since=$(python3 -c "import datetime as d;print((d.datetime.now(d.timezone.utc)-d.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%SZ'))")
+api_ok GET "/api/v1/history/$probe_id/temperature?from=$since&aggregation=1h" "" "$guest" >/dev/null
+hours=$(python3 -c "import json;print(len(json.load(open('$API_BODY')).get('points', [])))")
+[ "$hours" -ge 150 ] && ok "$hours hours of temperature over the last week (${probe_name//_/ })" ||
+  fail "$hours hours of temperature over the last week (${probe_name//_/ }) — expected about 168"
+
+if [ "${ARBITER_BURNED_IN:-0}" = "1" ]; then
+  api_ok GET /api/v1/energy/arbiter/metrics "" "$guest" >/dev/null
+  arbiter_days=$(python3 -c "
+import json
+print(sum(1 for d in json.load(open('$API_BODY')).get('home', [])[-7:] if d.get('samples', 0) > 200))
+")
+  [ "$arbiter_days" -ge 6 ] && ok "the arbiter has $arbiter_days full days of its own in the last seven" ||
+    fail "the arbiter has $arbiter_days full days in the last seven — its history is not the week FR4 promises"
+else
+  note "arbiter history not checked: burn-in not declared done (ARBITER_BURNED_IN=1 in .env)"
 fi
 
 if [ "$failures" -gt 0 ]; then

@@ -1,0 +1,12 @@
+# History the reset keeps (spec 003, FR3). One table per line.
+#
+# SQLite tables no Sowel backup carries, whose rows are history rather than a
+# visitor's leftovers: the arbiter's week and its daily metrics, the journal a
+# visitor reads, each recipe's log. Everything else not in the backup is wiped with
+# the house. Adding a line here is a decision: say why in the commit.
+arbiter_decision_log
+arbiter_surplus_log
+arbiter_daily_load_metrics
+arbiter_daily_home_metrics
+activity_log
+recipe_log
