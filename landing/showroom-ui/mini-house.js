@@ -126,27 +126,23 @@
     "salle-de-bain": {
       zone: "Salle de Bain",
       recipe: "Motion Light",
-      target: "Lumière Salle de Bain",
       fr: "Entrer dans la salle de bain",
       en: "Walk into the bathroom",
     },
     "chambre-enfant-2": {
       zone: "Chambre Enfant 2",
       recipe: "Presence Heater",
-      target: "Radiateur",
       fr: "Aller dans la chambre d'enfant",
       en: "Go to the child's room",
     },
     sejour: {
       zone: "Séjour",
       recipe: "Motion Light Dimmable",
-      target: "Applique x 1",
       fr: "S'installer au séjour",
       en: "Settle in the living room",
     },
     bureau: {
       zone: "Bureau",
-      target: "THR",
       nudge: { alias: "sim.temperature", value: 15 },
       fr: "Ouvrir la fenêtre du bureau",
       en: "Open the office window",
@@ -250,14 +246,6 @@
       width: auto !important; height: 62vh !important; border-radius: 16px 16px 0 0; }
     #sm-window.sheet #sm-grip { display: none; }
     #sm-window.sheet #sm-bar { cursor: default; }
-    /* Pointing at what changed in Sowel (FR5): a warm wash that pulses twice over
-       the row and goes, drawn over the interface rather than written into it. The
-       first version ringed it in thick amber, with a bubble over Sowel's content:
-       "trop moche" (owner). The words are in the window now, under the action. */
-    #sm-pointer { position: fixed; z-index: 2147482999; pointer-events: none; border-radius: 8px;
-      background: rgba(242,192,53,.18); opacity: 0; }
-    #sm-pointer.pulse { animation: sm-wash 2.6s ease-in-out 1 forwards; }
-    @keyframes sm-wash { 0% { opacity: 0 } 18% { opacity: 1 } 42% { opacity: .35 } 66% { opacity: 1 } 100% { opacity: 0 } }
     #sm-strip .why { margin-top: -4px; color: #4a5b66; font-size: 12px; line-height: 1.35; }
     #sm-toast { position: fixed; z-index: 2147483002; left: 50%; bottom: 80px; transform: translateX(-50%);
       max-width: min(560px, calc(100vw - 32px)); padding: 10px 16px; border-radius: 10px; background: #1a4f6e;
@@ -602,7 +590,6 @@
   const onStart = async (running) => {
     const what = running.what;
     let zoneName = null;
-    let target = null;
     let bubble = null;
     if (running.kind === "journey") {
       const journey = JOURNEYS[what.journey];
@@ -614,15 +601,12 @@
             ? `walk=${what.journey}&t=${Date.now()}`
             : `walk=${what.journey}&who=${encodeURIComponent(running.who)}&me=0&t=${Date.now()}`,
         );
-        target = journey.target;
         bubble = T.bubbleJourney(running.who, running.mine, journey.recipe);
       } else {
         if (running.mine) void nudge(journey);
-        target = journey.target;
         bubble = T.bubbleCold(running.who, running.mine);
       }
     } else {
-      target = what.equipment ?? what.zone ?? what.mode ?? null;
       bubble = T.bubbleOrder(running.who, running.mine, whatWords(what));
     }
     whyText = bubble;
@@ -640,7 +624,6 @@
       history.pushState({}, "", `/home/${zoneId}`);
       dispatchEvent(new PopStateEvent("popstate"));
     }
-    point(target);
   };
 
   // The office's cold: a simulated temperature on the room's probe, sent by the
@@ -658,62 +641,6 @@
         });
     } catch {
       /* the journal will show nothing happened */
-    }
-  };
-
-  // ── Pointing at Sowel ───────────────────────────────────────────────────────
-  const pointer = el("div", { id: "sm-pointer" });
-  let pointTimers = [];
-  const findText = (text) => {
-    if (!text) return null;
-    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-    let node;
-    while ((node = walker.nextNode())) {
-      if (node.textContent.trim() !== text) continue;
-      const host = node.parentElement;
-      if (!host || host.closest("#sm-window, #sm-toast")) continue;
-      // The row or card the text is in, not the text alone: the nearest box wide and
-      // tall enough to read as one — the lamp's row, not the whole equipment list.
-      let card = host;
-      for (let up = host; up && up !== document.body; up = up.parentElement) {
-        const r = up.getBoundingClientRect();
-        if (r.width > 200 && r.height >= 40) {
-          card = up;
-          break;
-        }
-      }
-      return card;
-    }
-    return null;
-  };
-  const point = (target) => {
-    for (const t of pointTimers) clearTimeout(t);
-    pointTimers = [];
-    // The room's page renders after the navigation and fills as its data arrives:
-    // look for the row a few times, and wash it once when found.
-    const attempt = () => {
-      const found = findText(target);
-      if (!found) return false;
-      found.scrollIntoView({ block: "center", behavior: "smooth" });
-      pointTimers.push(
-        setTimeout(() => {
-          const r = found.getBoundingClientRect();
-          Object.assign(pointer.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
-          pointer.classList.remove("pulse");
-          if (!pointer.isConnected) document.body.appendChild(pointer);
-          void pointer.offsetWidth;
-          pointer.classList.add("pulse");
-        }, 450),
-      );
-      return true;
-    };
-    let done = false;
-    for (const delay of [900, 2000, 3500, 6000]) {
-      pointTimers.push(
-        setTimeout(() => {
-          if (!done) done = attempt();
-        }, delay),
-      );
     }
   };
 

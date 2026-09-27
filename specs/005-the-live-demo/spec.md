@@ -137,10 +137,10 @@ While an action runs, every visitor's page shows it:
 
 - **the 3D** walks the running visitor's figure, labelled with their name ("Visiteur
   3"): amber when it is the viewer's own, grey otherwise;
-- **Sowel follows**: when an action starts, the interface opens the page of its room
-  and a warm wash pulses twice over the row that changed, then goes. The words — "Motion
-  Light t'a vu entrer, et a agi" — are in the window, under the running action (amended
-  the same day: a thick amber ring and a bubble over Sowel's content were "trop moche").
+- **Sowel follows**: when an action starts, the interface opens the page of its room.
+  The words — "Motion Light t'a vu entrer, et a agi" — are in the window, under the
+  running action. Nothing is drawn over Sowel (amended the same day: a thick amber ring
+  and a bubble, then a pulsing wash, were each "moche" — the page and the words say it).
 
 **Suivre** is on by default and can be turned off: a visitor browsing Sowel is not
 dragged away by someone else's action. Their own action always brings them back.
