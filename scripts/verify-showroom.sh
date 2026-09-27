@@ -218,6 +218,37 @@ hours=$(python3 -c "import json;print(len(json.load(open('$API_BODY')).get('poin
 [ "$hours" -ge 150 ] && ok "$hours hours of temperature over the last week (${probe_name//_/ })" ||
   fail "$hours hours of temperature over the last week (${probe_name//_/ }) — expected about 168"
 
+# ── the first guided journey (spec 004) ───────────────────────────────────────
+# A guest's ghost walks into the bathroom; the motion-light recipe must light it.
+api_ok GET /api/v1/equipments "" "$guest" >/dev/null
+journey=$(python3 -c "
+import json
+eq = json.load(open('$API_BODY'))
+ghost = next((e['id'] for e in eq if any(b.get('alias') == 'sim.ghost' for b in e.get('orderBindings', []))), '')
+lamp = next((e['id'] for e in eq if e['name'] == 'Lumière Salle de Bain'), '')
+pir = any(e['name'] == 'PIR Salle de Bain' for e in eq)
+print(ghost or '-', lamp or '-', 'yes' if pir else 'no')
+")
+read -r ghost_id lamp_id has_pir <<<"$journey"
+if [ "$has_pir" != "yes" ] || [ "$ghost_id" = "-" ] || [ "$lamp_id" = "-" ]; then
+  note "bathroom journey not checked: this fixture has no bathroom sensor (simulator < 0.4.1)"
+else
+  api_ok POST "/api/v1/equipments/$ghost_id/orders/sim.ghost" '{"value":"verify:salle-de-bain"}' "$guest" >/dev/null
+  lit=no
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    sleep 1
+    api_ok GET /api/v1/equipments "" "$guest" >/dev/null
+    state=$(python3 -c "
+import json
+e = next(e for e in json.load(open('$API_BODY')) if e['id'] == '$lamp_id')
+print(next((b['value'] for b in e['dataBindings'] if b['alias'] == 'state'), None))
+")
+    [ "$state" = "True" ] && { lit=yes; break; }
+  done
+  [ "$lit" = yes ] && ok "a guest walking into the bathroom lights it (the recipe saw them)" ||
+    fail "a guest's ghost in the bathroom did not light it within ten seconds"
+fi
+
 if [ "${ARBITER_BURNED_IN:-0}" = "1" ]; then
   api_ok GET /api/v1/energy/arbiter/metrics "" "$guest" >/dev/null
   arbiter_days=$(python3 -c "

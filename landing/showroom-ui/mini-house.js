@@ -42,6 +42,11 @@
       back: "Revenir en vignette (Échap)",
       reduce: "Réduire",
       open: "Afficher la maison en 3D",
+      try: "Essayer",
+      tryTitle: "Essayer : Sowel réagit à ta présence",
+      go: "Y aller",
+      leave: "Sortir",
+      seeInSowel: "Voir dans Sowel",
     },
     en: {
       title: "3D house",
@@ -49,6 +54,11 @@
       back: "Back to the vignette (Esc)",
       reduce: "Minimise",
       open: "Show the house in 3D",
+      try: "Try it",
+      tryTitle: "Try it: Sowel reacts to you being there",
+      go: "Go",
+      leave: "Leave",
+      seeInSowel: "See it in Sowel",
     },
   }[lang];
 
@@ -101,6 +111,26 @@
       box-shadow: 0 0 0 100vmax rgba(10,30,45,.38), 0 18px 48px rgba(20,65,89,.4); }
     #sm-window.full #sm-bar { cursor: default; }
     #sm-window.full #sm-grip { display: none; }
+    #sm-bar #sm-try { width: auto; height: auto; padding: 3px 9px; border-radius: 6px; font-size: 11px; font-weight: 700;
+      background: #f2c035; color: #1a2f3c; opacity: 1; }
+    #sm-bar #sm-try:hover, #sm-bar #sm-try:focus-visible { background: #d4a41c; }
+    /* Beside the vignette, never over it: the point is to watch the house. */
+    #sm-panel { position: fixed; z-index: 2147483001; width: 270px; display: none; max-height: 70vh; overflow: auto;
+      background: rgba(255,255,255,.97); color: #1f2d36; border-radius: 12px; padding: 10px 12px;
+      box-shadow: 0 10px 30px rgba(20,65,89,.3), 0 0 0 1px rgba(26,79,110,.15); font: 500 12px/1.4 Inter, system-ui, sans-serif; }
+    #sm-panel.open { display: block; }
+    #sm-panel h3 { margin: 0 0 6px; font-size: 12px; font-weight: 700; color: #1a4f6e; }
+    #sm-panel .journey { padding: 6px 0; border-top: 1px solid #e3ebf0; }
+    #sm-panel .journey:first-of-type { border-top: 0; }
+    #sm-panel .what { font-weight: 600; }
+    #sm-panel .why { color: #52616b; margin-top: 2px; }
+    #sm-panel .watch { display: none; margin-top: 6px; padding: 6px 8px; border-radius: 8px; background: #eef5f8; color: #1f3d4e; }
+    #sm-panel .journey.walking .watch { display: block; }
+    #sm-panel .actions { display: flex; gap: 6px; margin-top: 6px; align-items: center; }
+    #sm-panel button { all: unset; cursor: pointer; padding: 4px 10px; border-radius: 6px; font-weight: 700; font-size: 11px;
+      background: #1a4f6e; color: #fff; }
+    #sm-panel button.secondary { background: #dbe7ee; color: #1a4f6e; }
+    #sm-panel a { color: #1a4f6e; font-weight: 600; }
   `;
   document.head.appendChild(style);
 
@@ -113,15 +143,57 @@
       '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 12h14"/></svg>',
   };
 
+  // The guided journeys (spec 004): the visitor walks into a room, a recipe sees
+  // them. Data, so an increment is an entry: the room it walks to and the zone whose
+  // page in Sowel shows what happened. The 3D shows whichever storey the figure is
+  // on as it walks (house-3d spec 005, FR4).
+  const JOURNEYS = [
+    {
+      room: "salle-de-bain",
+      zone: "Salle de Bain",
+      fr: {
+        what: "Entrer dans la salle de bain",
+        why: "Une recette allume la lumière dès qu'elle détecte quelqu'un, de jour comme de nuit.",
+        watch:
+          "Ton personnage entre, monte l'escalier : chaque lumière s'allume quand il entre dans la pièce. Ce sont les recettes de Sowel qui réagissent à sa présence, pas un clic sur une lampe.",
+      },
+      en: {
+        what: "Walk into the bathroom",
+        why: "A recipe switches the light on as soon as it detects someone, day or night.",
+        watch:
+          "Your figure walks in and up the stairs: each light comes on as it enters the room. That is Sowel's recipes reacting to its presence, not a click on a lamp.",
+      },
+    },
+  ];
+
   const win = document.createElement("div");
   win.id = "sm-window";
   win.innerHTML = `
     <div id="sm-bar">
       <span>${T.title}</span>
+      <button type="button" id="sm-try" title="${T.tryTitle}">${T.try}</button>
       <button type="button" data-act="full" title="${T.full}" aria-label="${T.full}">${icon.full}</button>
       <button type="button" data-act="reduce" title="${T.reduce}" aria-label="${T.reduce}">${icon.reduce}</button>
     </div>
     <div id="sm-grip" title="↖"></div>`;
+  const holder = document.createElement("div");
+  holder.innerHTML = `
+    <div id="sm-panel" role="dialog" aria-label="${T.tryTitle}">
+      <h3>${T.tryTitle}</h3>
+      ${JOURNEYS.map(
+        (j, i) => `<div class="journey" data-i="${i}">
+          <div class="what">${j[lang].what}</div>
+          <div class="why">${j[lang].why}</div>
+          <div class="actions">
+            <button type="button" data-go="${i}">${T.go}</button>
+            <button type="button" class="secondary" data-leave="${i}">${T.leave}</button>
+            <a data-zone="${i}" href="/home" target="_top">${T.seeInSowel}</a>
+          </div>
+          <div class="watch">${j[lang].watch}</div>
+        </div>`,
+      ).join("")}
+    </div>`;
+  const panel = holder.firstElementChild;
   const pill = document.createElement("button");
   pill.id = "sm-pill";
   pill.type = "button";
@@ -143,16 +215,42 @@
       bottom: `${state.bottom}px`,
     });
     Object.assign(pill.style, { right: `${state.right}px`, bottom: `${state.bottom}px` });
+    placePanel();
   };
+  // Beside the vignette, on its left, bottom-aligned; in full screen, in its
+  // top-left corner, over the house's sky rather than its rooms.
+  function placePanel() {
+    if (!panel) return;
+    if (full) {
+      Object.assign(panel.style, { left: "24px", top: "56px", right: "", bottom: "" });
+    } else {
+      const right = state.right + state.w + 10;
+      const fits = innerWidth - right >= 280;
+      Object.assign(
+        panel.style,
+        fits
+          ? { right: `${right}px`, bottom: `${state.bottom}px`, left: "", top: "" }
+          : {
+              right: `${state.right}px`,
+              bottom: `${state.bottom + state.h + 10}px`,
+              left: "",
+              top: "",
+            },
+      );
+    }
+  }
 
   let frame = null;
   let full = false;
 
-  // The 3D app reads its `#full` anchor: small without it, the full HUD with it.
-  // Setting the anchor of a same-origin frame reloads nothing.
-  const tell = () => {
+  // The 3D app reads its anchor (house-3d spec 003, amended): `full` for the full
+  // HUD, `level` for a storey, `walk` to walk the visitor's figure to a room. Setting
+  // the anchor of a same-origin frame reloads nothing. A walk carries a timestamp so
+  // asking twice for the same room is still a change the app hears.
+  const tell = (extra = "") => {
+    const parts = [full ? "full" : "", extra].filter(Boolean);
     try {
-      if (frame?.contentWindow) frame.contentWindow.location.hash = full ? "full" : "";
+      if (frame?.contentWindow) frame.contentWindow.location.hash = parts.join("&");
     } catch {
       /* not loaded yet: it starts small, which is what `full = false` means */
     }
@@ -165,6 +263,7 @@
     button.title = full ? T.back : T.full;
     button.setAttribute("aria-label", button.title);
     tell();
+    placePanel();
   };
 
   const render = () => {
@@ -172,6 +271,7 @@
     const mounted = win.isConnected || pill.isConnected;
     // Nothing on the login screen: the 3D would only say there is no session.
     if (!signedIn) {
+      panel.remove();
       win.remove();
       pill.remove();
       frame = null;
@@ -185,12 +285,17 @@
         frame.title = T.title;
         win.insertBefore(frame, win.querySelector("#sm-grip"));
       }
-      if (!win.isConnected) document.body.appendChild(win);
+      if (!win.isConnected) {
+        document.body.appendChild(win);
+        document.body.appendChild(panel);
+        void zoneLinks();
+      }
     } else {
       if (full) setFull(false);
       frame?.remove();
       frame = null;
       win.remove();
+      panel.remove();
       if (!pill.isConnected) document.body.appendChild(pill);
     }
     if (!mounted) place();
@@ -202,6 +307,43 @@
     render();
   });
   win.querySelector('[data-act="full"]').addEventListener("click", () => setFull(!full));
+
+  win.querySelector("#sm-try").addEventListener("click", () => {
+    panel.classList.toggle("open");
+    placePanel();
+  });
+  // Each journey's link goes to its room's page in Sowel, found by the zone's name.
+  const zoneLinks = async () => {
+    try {
+      const token = read("sowel_access_token");
+      const res = await fetch("/api/v1/zones", { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) return;
+      const flat = (zones) => zones.flatMap((z) => [z, ...flat(z.children || [])]);
+      const zones = flat(await res.json());
+      JOURNEYS.forEach((j, i) => {
+        const zone = zones.find((z) => z.name === j.zone);
+        const link = panel.querySelector(`[data-zone="${i}"]`);
+        if (zone && link) link.href = `/home/${zone.id}`;
+      });
+    } catch {
+      /* the link stays on the home page */
+    }
+  };
+  panel.addEventListener("click", (event) => {
+    const go = event.target.closest("[data-go]");
+    const leave = event.target.closest("[data-leave]");
+    if (!go && !leave) return;
+    const i = Number((go || leave).dataset.go ?? (go || leave).dataset.leave);
+    const journey = JOURNEYS[i];
+    const line = panel.querySelector(`.journey[data-i="${i}"]`);
+    if (go) {
+      line.classList.add("walking");
+      tell(`walk=${journey.room}&t=${Date.now()}`);
+    } else {
+      line.classList.remove("walking");
+      tell(`walk=away&t=${Date.now()}`);
+    }
+  });
   addEventListener("keydown", (event) => {
     if (event.key === "Escape" && full) setFull(false);
   });
