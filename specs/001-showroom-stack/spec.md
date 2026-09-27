@@ -246,7 +246,7 @@ being honest about the dark is not a broken demo.
 
 ### 2026-09-27 — the guest sees everything and changes nothing
 
-**Status: proposed, awaiting the owner's validation. Nothing is implemented.**
+**Status: validated by the owner on 2026-09-27.**
 
 The owner: _every feature should be visible in the demo, with every setting
 read-only; as it stands, a visitor does not see what Sowel does._ As a `standard`
