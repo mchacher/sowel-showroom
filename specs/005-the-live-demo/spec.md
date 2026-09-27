@@ -1,190 +1,168 @@
-# Spec 005 — The guided tour
+# Spec 005 — The live demo: Sowel and the house, side by side
 
-**Status**: 📝 Draft — proposed 2026-09-27, awaiting the owner's validation.
+**Status**: 📝 Draft — the owner chose the direction on 2026-09-27 from three HTML
+mock-ups (a guided tour, Sowel and the house side by side, the house with a journal of
+causes): the second, with the third's journal, and a queue for what visitors do.
+Awaiting validation of this text.
 
 ## Context
 
 Spec 004 gave the visitor journeys, and they work: walk into a room, a recipe reacts,
-the panel reads the proof. The owner, trying them: _the "Essayer" button and the
-menu on the left make no sense; the UX has to be much better._
+the panel reads the proof. The owner, trying them: _the "Essayer" button and the menu on
+the left make no sense; the UX has to be much better._
 
-What is wrong, concretely:
+- **Hidden.** "Essayer" is a small button in the vignette's title bar; a first visitor
+  lands on a dashboard full of numbers and never looks there.
+- **A wall of text.** Every journey at once, three paragraphs and three buttons each.
+- **The wrong stage.** What there is to watch is in a 440 px vignette.
+- **No cause shown.** _A recipe did this_ is a grey sentence; the recipe is never seen
+  acting in Sowel.
+- **Several visitors** act on one shared house, and nobody sees who did what: B sees a
+  light go off and does not know why.
 
-- **Hidden.** "Essayer" is a small amber button in the vignette's title bar, over
-  the Sowel interface. A first visitor lands on a dashboard full of numbers and
-  does not look there.
-- **A wall of text.** The panel lists every journey at once, each with three
-  paragraphs and three buttons. It reads like documentation, not like a demo.
-- **The wrong stage.** What there is to watch — the figure, the lights, the
-  radiator, the fan — is in a 440 px vignette, while the panel and the Sowel
-  interface take the rest of the screen. In full screen, the panel sits on the left
-  like a menu nobody asked for.
-- **No story.** Nothing says where to start, what comes next, or when it is over.
-  "Sortir" is a chore the visitor has to remember.
-- **The "why" is missing.** The point — _a recipe did this_ — is a sentence in
-  grey. The recipe itself, its rule, is never shown.
+## The idea
+
+**The visitor acts in the house; Sowel reacts under their eyes.** Sowel's own interface
+is the story: the page of the room opens, the card that changed lights up, the recipe
+that acted is pointed at. Beside it, the house in 3D, with a journal of what just
+happened. Everybody is there at once; what they do goes through **one queue, shown to
+all**, so each action is seen, and seen to be someone's.
 
 ## Goals
 
-- A first-time visitor **understands what Sowel does in under three minutes**,
-  without reading more than two lines at a time.
-- **One thing at a time**: one step, one action, one thing to watch.
-- **The house is the stage**: the 3D takes the screen during the tour.
-- **Show the rule**: each step ends on the recipe that did it, in plain words,
-  read from Sowel — not paraphrased by the showroom.
-- **Then let go**: the tour ends in Sowel's own interface, where the visitor can
-  explore freely, with the vignette.
+- A first visitor understands what Sowel does in **under two minutes**.
+- **Cause and effect are visible**: what was seen, which recipe acted, what it did.
+- **Several visitors share the house without confusion**: one action at a time, who
+  did it said, and a queue anyone can read.
+- **The real product tells the story**: the Sowel interface, stock, not a copy of it.
 
 ## Non-goals
 
-- Seeing the other visitors in the 3D, and a visitor count. A real need (see
-  "Several visitors" below) with its own spec.
-- New recipes. The temperature-threshold recipe stays its own increment.
-- Changing the Sowel interface. The core is untouched; the tour is the showroom's.
+- A single pilot at a time: everybody browses and acts; only the execution is serial.
+- Showing every visitor as a figure in the 3D — only the one whose action is running
+  (FR5).
+- Anything in the core. The interface is stock; the queue and the page are the
+  showroom's.
 
 ## Functional requirements
 
-### FR1 — Two ways in, from the landing page
+### FR1 — One page, two halves
 
-The landing page offers two buttons, the first one primary:
-
-```
-┌───────────────────────────────────────────────┐
-│  Une maison qui vit, et que vous pouvez       │
-│  manipuler.                                   │
-│                                               │
-│  [ ▶ Visite guidée · 2 min ]  [ Explorer Sowel ]│
-└───────────────────────────────────────────────┘
-```
-
-- **Visite guidée** opens the tour (`/visite`).
-- **Explorer Sowel** goes to the Sowel interface, as today.
-
-Both log in as the guest the way the page does today.
-
-### FR2 — The tour is a page of its own, the 3D full screen
-
-`/visite` is a showroom page: the 3D house fills the screen, and a **story card**
-sits over it — bottom left on a desk, a bottom sheet on a phone.
+`/demo` is the showroom's page, and the landing page's one button leads there.
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│ Sowel · visite guidée                 ● ● ○ ○ ○    FR/EN   ✕  │
-│                                                              │
-│                  [ the house, in 3D, live ]                  │
-│                                                              │
-│ ┌──────────────────────────────┐                             │
-│ │ 2 / 5 · Chambre d'enfant      │                             │
-│ │ Entre dans la chambre.        │                             │
-│ │                               │                             │
-│ │ [ ▶ Y aller ]                 │                             │
-│ └──────────────────────────────┘                             │
-└──────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────┐
+│ DÉMO EN DIRECT · choisis une action à droite     5 visiteurs · Quitter     │
+├──────────────────────────────────────────┬─────────────────────────────────┤
+│ Sowel — the real interface               │ The house, live (3D)            │
+│  ● Sowel suit l'action en cours [Suivre] │   ┌─────────────────────────┐   │
+│  Salle de bain                           │   │         [3D]            │   │
+│  [Lumière: Allumée]  [Détecteur] [Temp]  │   │ ┌ journal ──────────┐   │   │
+│  Recettes: [Motion Light · a agi]        │   │ │16:32 Motion Light…│   │   │
+│   ╰─ "C'est elle qui a allumé."          │   └─┴───────────────────┴───┘   │
+│                                          │ File d'attente                  │
+│                                          │  EN COURS Visiteur 3 · SdB  12 s│
+│                                          │  2e · toi  Bureau          ~25 s│
+│                                          │ Ajoute une action : [..] [..]   │
+└──────────────────────────────────────────┴─────────────────────────────────┘
 ```
 
-The header: a progress of dots, the language, and ✕ which leaves for the Sowel
-interface.
+- **Left**: the Sowel interface, as it ships, framed from the same origin.
+- **Right**: the 3D house with the journal over it (FR4), the queue (FR3), and the
+  actions to add (FR2).
+- **On a phone**, stacked: the 3D and its journal, the queue, then Sowel.
 
-### FR3 — A step has three moments
+### FR2 — Actions
 
-Each step moves through the same three moments, in the same card:
+The right half lists what a visitor can do — the journeys of spec 004: walk into the
+bathroom, go to child's room 2, settle in the living room, open the office window.
+Choosing one **adds it to the queue**; it does not happen at once.
 
-1. **Do** — one sentence, one button. "Entre dans la salle de bain." `[▶ Y aller]`
-2. **Watch** — the button is gone; the 3D frames the room and the figure walks;
-   the card shows **one live line** and says what to look at. The moment it
-   happens, the line turns green: "✓ La lumière s'est allumée."
-3. **Why** — the card turns over to the rule that did it, **read from Sowel**:
-   the recipe's name and its parameters in plain words, and a link to it.
+**What a visitor does in Sowel goes to the queue too** (owner, 2026-09-27): switching a
+lamp from its card, activating a mode, a timed action. Nothing a visitor does reaches
+the house except through the queue.
+
+**One pending action per visitor.** While theirs waits or runs, the actions are shown
+greyed with where theirs stands; a second click in Sowel says so in a toast. Nobody can
+fill the queue alone.
+
+### FR3 — The queue
+
+One action runs at a time, in order of arrival, and everybody sees the same list: the
+running action (who, what, how long left), then those waiting, the visitor's own
+marked.
+
+How long an action holds the house:
+
+| Action                         | Holds                                       |
+| ------------------------------ | ------------------------------------------- |
+| A journey (a walk, the window) | 20 s — the walk, and time to see the effect |
+| An order clicked in Sowel      | 3 s — done at once, then a pause to see it  |
+
+It is not a long wait: with ten visitors each waiting with a journey, the last waits
+about three minutes. A visitor who leaves the page loses their pending action (no
+heartbeat for 30 s).
+
+### FR4 — The journal, over the 3D
+
+A small translucent panel over the 3D, newest on top, that **keeps every action,
+however fast it went** (owner: a click is over in an instant, so the journal is what
+shows it happened):
 
 ```
- Do                         Watch                        Why
-┌─────────────────────┐    ┌─────────────────────┐    ┌──────────────────────────┐
-│ 1/5 · Salle de bain │    │ 1/5 · Salle de bain │    │ 1/5 · Pourquoi ?         │
-│ Entre dans la salle │    │ Regarde la lumière… │    │ Recette « Motion Light » │
-│ de bain.            │ →  │                     │ →  │ Quand quelqu'un est      │
-│                     │    │ ✓ Lumière allumée   │    │ détecté dans Salle de    │
-│ [ ▶ Y aller ]       │    │                     │    │ bain → allumer la lampe, │
-└─────────────────────┘    └─────────────────────┘    │ éteindre 5 s après.      │
-                                                      │ Voir dans Sowel ↗        │
-                                                      │ [ Suivant → ]            │
-                                                      └──────────────────────────┘
+16:32:07  Lumière salle de bain : allumée
+16:32:07  Motion Light : présence → allumer          (a recipe, in amber)
+16:32:06  Détecteur salle de bain : présence
+16:31:55  Visiteur 3 entre dans la salle de bain     (an action from the queue)
+16:31:40  Visiteur 5 : Lumière séjour → allumée      (a click in Sowel, queued)
 ```
 
-- **No "Sortir".** The next step walks the figure where it goes next; the last one
-  walks it out of the house. Leaving a room is part of what there is to watch.
-- **If nothing happens** within twenty seconds — another visitor, the night
-  window, bright daylight — the card says so honestly and still shows the rule,
-  which is what explains it: "Il fait assez clair (2 400 lx > 2 300 lx) : la
-  recette n'allume pas. C'est voulu."
-- **Voir dans Sowel** opens the recipe's room in the Sowel interface, in a new
-  tab: the tour stays where it is.
+Two sources, merged by time:
 
-### FR4 — The steps
+- **the queue's own record**: who did what, clicked or chosen, when it ran;
+- **Sowel's activity feed** (`activity.added` over the WebSocket): what was detected,
+  each order with the recipe or mode that sent it.
 
-| #   | Room             | Do                             | Proof (live line)                               | Why (the recipe, from Sowel)                |
-| --- | ---------------- | ------------------------------ | ----------------------------------------------- | ------------------------------------------- |
-| 0   | —                | "Voici la maison, en direct."  | the time, the sun, who is home                  | the house is simulated; Sowel runs it       |
-| 1   | Salle de bain    | Entre dans la salle de bain    | the lamp on                                     | Motion Light                                |
-| 2   | Chambre enfant 2 | Entre dans la chambre          | the radiator: eco → comfort                     | Presence Heater (day window said)           |
-| 3   | Séjour           | Installe-toi au séjour         | luminosity against the threshold; the lights    | Motion Light Dimmable                       |
-| 4   | Bureau           | Ouvre la fenêtre du bureau     | 19 → 15 °C, the heat pump starts, its fan turns | none: the heat pump's own regulation — said |
-| 5   | —                | "À toi." The figure walks out. | the lights going off behind it                  | → the Sowel interface, the vignette         |
+It shows the last twenty lines and scrolls back to the last hundred; a visitor who
+arrives sees the recent history, not an empty box.
 
-Step 0 lasts as long as the visitor wants; step 5 has two buttons: **Explorer
-Sowel** (the dashboard, the vignette open) and **Recommencer**.
+### FR5 — Everyone watches the running action
 
-Day and night change the words, never the order: step 3 at night says the lights
-come on dimmed; step 2 between 21:00 and 9:00 says the recipe holds eco at night
-and shows it.
+While an action runs, every visitor's page shows it:
 
-### FR5 — The 3D frames the step
+- **the 3D** walks the running visitor's figure, labelled with their name ("Visiteur
+  3"): amber when it is the viewer's own, grey otherwise;
+- **Sowel follows**: when an action starts, the left half opens the page of its room
+  and points at what changed — the card, the recipe — with a short bubble ("Cette
+  recette a vu Visiteur 3 entrer, et a allumé").
 
-During the tour the 3D is the stage, so it shows what the step is about:
+**Suivre** is on by default and can be turned off: a visitor browsing Sowel is not
+dragged away by someone else's action. Their own action always brings them back.
 
-- the camera **frames the step's room** (a new anchor, `focus=<room>`, house-3d);
-- the storey follows the figure as it walks (house-3d spec 005, as today);
-- the HUD shows only the sun dial and the storey switch: the room list, the
-  status line and "Ouvrir Sowel" are the tour's to replace.
+### FR6 — Who is who
 
-### FR6 — The vignette in Sowel loses its panel
-
-In the Sowel interface, the vignette stays — the house beside the interface is
-right — but the "Essayer" button and its panel go. In their place, a **Visite
-guidée** link in the vignette's bar takes the visitor back to `/visite`.
-
-### FR7 — Phone first
-
-On a phone in portrait, the 3D takes the top two thirds and the card the bottom
-third, full width; buttons are thumb-sized. The tour must be comfortable there:
-that is where a shared link is opened.
-
-## Several visitors
-
-The owner asked what happens when several visitors act at once. One shared house:
-the last order wins; each visitor has their own ghost, so one leaving a room does
-not switch the light off on another; the simulator's debounce keeps a lamp from
-strobing; the proxy rate-limits each address. What the tour must do about it is
-**be honest**: the live line reads what Sowel says, not what the step expected, and
-"if nothing happens" (FR3) covers another visitor turning the light off. Seeing the
-others — their figures, a count, a journal of who did what — is the next spec.
+A visitor is "Visiteur N", given on arrival and kept for the visit (the id of spec 004,
+now also a cookie, so a click in the Sowel frame carries it). Their own lines and action
+read "Toi".
 
 ## Acceptance criteria
 
-- [ ] AC1 — From the landing page, a first visitor reaches step 1 in one click.
-- [ ] AC2 — Each step shows its proof, or says honestly why not, within twenty
-      seconds of its button.
-- [ ] AC3 — No card shows more than two sentences at once, except "Why".
-- [ ] AC4 — "Why" names the recipe and its rule from Sowel's own recipe instance:
-      change a timeout in the fixture and the card says the new one.
-- [ ] AC5 — The whole tour takes under three minutes at a normal pace.
-- [ ] AC6 — Usable on a phone in portrait (walked on a 390 × 844 viewport).
-- [ ] AC7 — The Sowel interface keeps its vignette, without "Essayer" or its panel.
+- [ ] AC1 — From the landing page, one click opens `/demo` with Sowel and the house.
+- [ ] AC2 — Two browsers: an action from each runs one after the other; both see the
+      queue, both see each action run, and both journals read the same.
+- [ ] AC3 — A lamp switched from its card in Sowel appears in the queue, runs, and stays
+      in the journal with who did it.
+- [ ] AC4 — A visitor cannot queue a second action while theirs waits.
+- [ ] AC5 — With "Suivre" on, the Sowel half opens the running action's room and points
+      at the recipe that acted; with it off, it stays where the visitor is.
+- [ ] AC6 — Usable on a phone in portrait (390 × 844).
+- [ ] AC7 — The core is untouched: the stock image, no plugin but the simulator.
 
 ## Edge cases
 
-| Case                                        | Behaviour                                                                                   |
-| ------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| The session expires mid-tour                | The page logs in again as the guest, silently, as the landing page does.                    |
-| No WebGL                                    | The tour runs as cards only; the live lines still tell the story.                           |
-| The visitor closes the tab mid-step         | The ghost expires after two minutes (simulator spec 002, FR4); nothing to clean up.         |
-| A step's room has been changed by the owner | The step names its room by zone name; a missing zone skips the step, logged in the console. |
+| Case                                             | Behaviour                                                                                           |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| The queue service is down                        | Actions are refused with a clear message; browsing still works; the reset's checks catch it.        |
+| The visitor holding the running action leaves    | Their walk still completes (the ghost expires on its own); the queue moves on at its time.          |
+| A pointed-at element is not on the page          | The bubble shows at the top of the Sowel half instead: the story holds even if the interface moves. |
+| Night, bright daylight, another visitor's effect | The journal reads what Sowel says; the bubble says why nothing lit ("il fait assez clair").         |

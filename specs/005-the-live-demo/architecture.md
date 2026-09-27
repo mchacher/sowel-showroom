@@ -1,53 +1,68 @@
 # Architecture — spec 005
 
-## Where it lives
+## The pieces
 
 ```
-sowel-showroom/landing/
-  index.html            FR1: two buttons instead of one
-  visite/
-    index.html          FR2: the page — the 3D frame, the card, the header
-    tour.js             the steps (data), the three moments, the live reads
+compose
+  proxy        nginx — the public door; now also routes visitors' orders to the queue
+  queue        NEW — a small Node service, no dependency, in memory: the queue and its record
+  sowel        stock image, untouched
+  influxdb
+
+landing/
+  index.html           one button: "Entrer dans la démo" → /demo
+  demo/
+    index.html         FR1: the two halves, the queue, the actions, the journal
+    demo.js            the page: follows the queue (SSE), drives the Sowel frame and the 3D
   showroom-ui/
-    mini-house.js       FR6: the vignette without the panel, a "Visite guidée" link
-    journeys.js         the journeys' data and live reads, shared with tour.js
+    mini-house.js      the vignette stays for Sowel opened alone; its "Essayer" panel goes
 ```
 
-The page is static, served by the proxy like the landing page. It talks to Sowel
-through the public API with the guest's session, and to the 3D through the frame's
-anchor — the same two channels the vignette uses today (spec 004).
+## Sowel in a frame
 
-**The journeys' data and their live reads move out of `mini-house.js`** into
-`journeys.js`, loaded by both. `mini-house.js` keeps only what the vignette needs.
+The page frames the Sowel interface from the same origin. Sowel's own headers refuse
+every frame; the proxy relaxes that **for this origin only** (`frame-ancestors 'self'`,
+`X-Frame-Options: SAMEORIGIN`), which `verify-showroom.sh` checks the way it checks the
+3D's today. Same origin means the page can:
+
+- navigate the frame's router (`history.pushState` and a `popstate` event) to a room's
+  page when "Suivre" is on;
+- find the card and the recipe row by their text, and draw the highlight and the bubble
+  in the page, positioned over the frame's elements. Nothing is written into Sowel's
+  DOM, which would re-render it away.
+
+The vignette script sees it is framed and stays out, as it already does.
+
+## The queue
+
+A service of a few hundred lines, one file, `node:24-alpine`, in the compose file:
+
+- **In**: `POST /queue` from the page (a journey) and, through the proxy, every visitor
+  order (`POST` equipment and zone orders, mode activations, timed actions) — the proxy
+  sends those to the queue instead of to Sowel. The visitor is the `showroom_visitor`
+  cookie; one pending action each. The answer is immediate: `202` with the position,
+  and a body the interface reads as success, so a click in Sowel does not show an error.
+- **Out**: `GET /queue/stream`, server-sent events — the queue, the running action and
+  the record — to every page.
+- **Running**: an order is forwarded to Sowel on the compose network with the visitor's
+  own bearer token (kept from the request), then held 3 s. A journey is a slot of 20 s
+  given to its visitor: their page walks the figure and sends the ghost's orders, which
+  the queue forwards at once because they come from the slot's holder.
+- **Record**: the last hundred actions, in memory; a reset empties it with the rest.
+
+The proxy's write allowlist (spec 001, amended) still decides what may be written at
+all; the queue only decides when.
+
+## The journal
+
+The page merges the queue's record (SSE) with Sowel's activity feed (`activity.added`
+on the WebSocket, which the guest's session already receives), sorted by time, and
+draws it over the 3D frame — in the page, not in the 3D app, which stays generic.
 
 ## The 3D
 
-One new anchor in sowel-house-3d (its spec 003, amended): `focus=<room>` frames a
-room — the camera's target on the room's centre, the distance to fit it — without
-changing the storey rule. And `tour` hides what the tour replaces (FR5): the room
-list, the status line, "Ouvrir Sowel". Both generic: any page embedding the house
-can use them.
-
-## "Why", from Sowel
-
-`GET /api/v1/recipe-instances` (readable by the guest since spec 001's amendment)
-gives each instance's `recipeId` and `params`. The card finds the instance by
-recipe and zone, and renders its rule from a small table of templates, one per
-recipe it knows:
-
-```
-motion-light:           "Quand quelqu'un est détecté dans {zone} → allumer {lights},
-                         éteindre {timeout} après."
-motion-light-dimmable:  "… seulement sous {luxThreshold} lx, à {slot} % entre …"
-presence-heater:        "Présence dans {zone} → confort ; vide depuis {timeout} → éco ;
-                         la nuit ({nightStart}–{nightEnd}), éco."
-```
-
-The numbers come from Sowel; the sentence around them is the showroom's. A recipe
-without a template shows its name and a link, nothing invented.
-
-## Why not in the 3D app
-
-The tour's content — which rooms, which recipes, what to say — is this demo's, not
-the 3D app's, which stays generic. The 3D app gains two generic anchors; the story
-stays here.
+Two generic additions to sowel-house-3d (its spec 005, amended): a walk may carry a
+label and whose it is (`walk=<room>&who=Visiteur 3&me=0`), so the page can walk someone
+else's figure grey and named; and the frame does not send the ghost's orders itself
+when the page says so (`ghost=page`), because in the demo the page sends them for the
+slot's holder only.
