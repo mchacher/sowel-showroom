@@ -243,3 +243,157 @@ The simulated inverter goes offline after sunset rather than reporting 0 W, beca
 that is what a real one does (simulator spec 001, FR12), and the equipment it backs
 goes offline with it. The verification notes it instead of failing on it. The house
 being honest about the dark is not a broken demo.
+
+### 2026-09-27 — the guest sees everything and changes nothing
+
+**Status: proposed, awaiting the owner's validation. Nothing is implemented.**
+
+The owner: _every feature should be visible in the demo, with every setting
+read-only; as it stands, a visitor does not see what Sowel does._ As a `standard`
+user, the guest never sees devices, the calendar, integrations, plugins, logs,
+publishers, the settings or the rest of the admin navigation. That is half the
+product, and most of what makes it more than a remote control.
+
+A `viewer` role in the core (every screen, forms disabled, secrets masked) is the
+right product answer and a real project: about twenty-five UI files use one
+`isAdmin` for both _may see_ and _may change_. The showroom does not wait for it.
+
+#### FR2, amended — the guest is an admin, read-only at the proxy
+
+The reset creates the guest with the **`admin`** role. Its password stays public by
+design, and the property this spec defends does not change: _what a guest can do is
+safe_. What enforces it does. It was the core's role gate, derived through a deny
+list. It is now **the proxy, failing closed**. The owner's admin account is a
+different account; its password is still never published.
+
+#### FR3, amended — writes: refused unless kept
+
+The proxy inverts. **Every `POST`, `PUT`, `PATCH` and `DELETE` under `/api/` is
+refused unless it matches a kept route.** Today's `keep` rows carry over unchanged,
+plus the two public routes a session needs:
+
+| Kept                                                                | Why                                     |
+| ------------------------------------------------------------------- | --------------------------------------- |
+| `POST /equipments/:id/orders/:alias`                                | The demo — the 3D app's ghost included. |
+| `POST /zones/:id/orders/:key`                                       | All lights off, all shutters closed.    |
+| `POST /modes/:id/activate` · `/deactivate` · `/apply-to-zone/:zone` | Day, evening, night.                    |
+| `POST`/`DELETE /equipments/:id/timed-action`                        | "Close the gate in five minutes".       |
+| `PUT /me/preferences`                                               | Language and theme.                     |
+| `POST /auth/login` · `/auth/refresh` · `/auth/logout`               | Getting, keeping and ending a session.  |
+
+Everything else is refused, whatever the core would allow an admin: every
+configuration form, self-update, plugin install, backup restore, user management,
+`/auth/setup`, MFA, tokens, push subscriptions. A route the core adds tomorrow is
+refused until this table names it — the reverse of today, where a new write route is
+allowed until someone classifies it.
+
+**The refusal speaks.** A 403 with `{"error": "Démo en lecture seule — read-only
+demo"}`. The product UI shows a failed request's `error` field as its message
+(`ui/src/api/client.ts`), so saving a form says why rather than "HTTP 403".
+
+`scripts/deny-list.txt` becomes `scripts/write-allowlist.txt`. It holds only the
+kept rows, each with its reason; the `deny` rows go, since there is nothing left to
+deny one by one.
+
+#### FR3b — reads: shown, except what is private
+
+An admin can read things a visitor must not. The proxy refuses these reads (every
+method) with the same 403:
+
+| Refused                                                                     | Why                                                                                                              |
+| --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `/api/v1/backup*`                                                           | The whole database, password hashes included.                                                                    |
+| `/api/v1/users*`                                                            | The owner's account.                                                                                             |
+| `/api/v1/audit*`                                                            | Each entry stores the actor's IP: one visitor would read the others'.                                            |
+| `/api/v1/me/tokens*`                                                        | Nothing to list, and nothing a visitor needs.                                                                    |
+| `/api/v1/mqtt-brokers*` · `/mqtt-publishers*` · `/notification-publishers*` | They carry passwords and bot tokens in clear. None is configured; refused so that stays harmless if one ever is. |
+
+Everything else is shown: devices, integrations (the core masks `password`-type
+settings; the simulator has none), plugins and the store, the calendar, recipes,
+modes, energy, logs and settings.
+
+**What the proxy cannot filter: the WebSocket.** An admin session may subscribe to
+the `logs` and `mqtt-publishers` topics. The second is empty here. The first streams
+what the Logs page shows anyway: the engine's log, with pino's redaction of
+passwords, tokens and secrets. Accepted, on one condition that the walk checks: no
+client IP in the log. If there is one, the logs are refused too and this paragraph
+says so.
+
+#### FR5, amended — an admin door the public never sees
+
+Every script call goes through the proxy today (`scripts/lib/sowel-api.sh`, on
+`PUBLIC_ORIGIN`). A proxy that refuses every write would refuse the reset's own work:
+the restore, the guest's creation, the arbiter's enrolment. So the proxy gets a
+**second server, on a port published on `127.0.0.1` only** (`ADMIN_PORT`, default
+8081), which proxies to Sowel with no write gate. The scripts' admin calls use it
+(`ADMIN_ORIGIN`); the guest checks keep using the public origin, because what they
+test is the public door.
+
+On the host this door is reachable only locally, or through an SSH tunnel for the
+owner. The owner logging in on the public site is read-only like everyone else, and
+that is fine: the admin password never needs to be typed on a public page.
+
+#### FR6, amended — what the reset proves
+
+On top of today's checks, as the guest on the public origin:
+
+- the session reports the `admin` role;
+- a configuration write outside the table is refused with the demo message (e.g.
+  renaming a zone);
+- `GET /api/v1/backup`, `/users` and `/audit` are refused;
+- `GET /api/v1/settings` and `/api/v1/integrations` succeed — the point of the change.
+
+And, on the admin door, the reset's own writes succeed, which it proves by running.
+
+#### FR7, amended — the drift that is left is in the reads
+
+Writes can no longer drift: a new route is refused. Reads can: a new admin-only
+`GET` in the core would be shown by default. `scripts/check-deny-list.sh` becomes
+`check-admin-reads.sh`. It reads the core's admin-gated path prefixes (`pathIs` /
+`pathIsUnder` followed by `requireAdmin`, in `src/api/routes/`) and fails on one that
+FR3b's table has not classified as shown or refused. The check of
+`STANDARD_WRITE_ALLOWLIST` goes: the guest is no longer `standard`.
+
+A page that reads through a `POST` would break under FR3. The only such route found
+in the core today is `POST /system/version/check`, a manual update check, which is
+right to refuse. The walk clicks through every page to find any other.
+
+#### FR8, amended
+
+"Admin-only surfaces are the core's own gate, and the guest is not admin" becomes:
+self-update, plugin management, backup restore and user management are writes, and
+the proxy refuses them. The Docker socket, `.env` and "no publisher configured" are
+unchanged.
+
+#### What the visitor will see, honestly
+
+- **The forms still look editable.** A visitor changes a value, saves, and reads
+  "Démo en lecture seule". It is not a read-only UI; that would be the core's
+  `viewer` role.
+- **Admin prompts appear**: an update available, a plugin update. Acting on them
+  gets the same message.
+
+#### Rejected
+
+- **A `viewer` role in the core, now.** It is the right product answer, but a real
+  project, and it would block the demo on the product. It may become an ordinary
+  core issue, argued on its own merits.
+- **Keeping `standard` and widening the deny list.** A deny list fails open: every
+  new core route is allowed until someone notices.
+- **Deciding the role in the proxy from the JWT.** nginx would need njs to read the
+  token. The admin door is simpler and needs nothing.
+
+#### Acceptance criteria
+
+- [ ] AC-A1 — As the guest, every page of the admin navigation opens and shows its
+      data, except backup and users, which say they are unavailable in the demo.
+- [ ] AC-A2 — Saving any configuration form as the guest shows "Démo en lecture
+      seule", and nothing changes.
+- [ ] AC-A3 — Ordering a light, switching a mode, a timed action, the language and
+      the 3D app's walk still work.
+- [ ] AC-A4 — `GET /api/v1/backup`, `/users` and `/audit` are refused as the guest.
+- [ ] AC-A5 — The reset runs end to end through the admin door, and the admin door
+      is not reachable from another machine.
+- [ ] AC-A6 — `check-admin-reads.sh` fails when the core gains an unclassified
+      admin-gated prefix.
+- [ ] AC-A7 — No client IP in the logs, or the logs are refused (FR3b).
