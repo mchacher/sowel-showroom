@@ -47,6 +47,8 @@
       go: "Y aller",
       leave: "Sortir",
       seeInSowel: "Voir dans Sowel",
+      readOnly:
+        "Démo en lecture seule : tu peux tout regarder, piloter la maison et changer de mode, mais pas modifier la configuration.",
     },
     en: {
       title: "3D house",
@@ -59,6 +61,8 @@
       go: "Go",
       leave: "Leave",
       seeInSowel: "See it in Sowel",
+      readOnly:
+        "Read-only demo: look at everything, drive the house and switch modes, but the configuration stays as it is.",
     },
   }[lang];
 
@@ -131,8 +135,43 @@
       background: #1a4f6e; color: #fff; }
     #sm-panel button.secondary { background: #dbe7ee; color: #1a4f6e; }
     #sm-panel a { color: #1a4f6e; font-weight: 600; }
+    #sm-readonly { position: fixed; z-index: 2147483002; left: 50%; bottom: 80px; transform: translateX(-50%);
+      max-width: min(560px, calc(100vw - 32px)); padding: 10px 16px; border-radius: 10px; background: #1a4f6e;
+      color: #fff; font: 500 13px/1.4 Inter, system-ui, sans-serif; box-shadow: 0 10px 30px rgba(20,65,89,.35);
+      border-left: 4px solid #f2c035; opacity: 0; pointer-events: none; transition: opacity .2s; }
+    #sm-readonly.shown { opacity: 1; }
   `;
   document.head.appendChild(style);
+
+  // The demo is read-only (spec 001, amended 2026-09-27): the proxy refuses every
+  // configuration write with "Démo en lecture seule". Some pages of the interface
+  // show that message; others swallow it — the settings page saves, fails, and says
+  // nothing. So the refusal is caught here, once for every page, and said plainly.
+  const readOnly = document.createElement("div");
+  readOnly.id = "sm-readonly";
+  readOnly.setAttribute("role", "status");
+  readOnly.textContent = T.readOnly;
+  let readOnlyTimer = 0;
+  const sayReadOnly = () => {
+    if (!readOnly.isConnected) document.body.appendChild(readOnly);
+    requestAnimationFrame(() => readOnly.classList.add("shown"));
+    clearTimeout(readOnlyTimer);
+    readOnlyTimer = setTimeout(() => readOnly.classList.remove("shown"), 5000);
+  };
+  const nativeFetch = window.fetch.bind(window);
+  window.fetch = async (...args) => {
+    const res = await nativeFetch(...args);
+    if (res.status === 403) {
+      res
+        .clone()
+        .text()
+        .then((body) => {
+          if (body.includes("lecture seule")) sayReadOnly();
+        })
+        .catch(() => {});
+    }
+    return res;
+  };
 
   const cube =
     '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="M3 7l9 5 9-5M12 12v10"/></svg>';

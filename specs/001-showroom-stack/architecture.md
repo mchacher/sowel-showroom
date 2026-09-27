@@ -6,14 +6,15 @@
 compose.yml                 sowel + influxdb + proxy, nothing else
 .env.example                every key, no value
 proxy/
-  nginx.conf                deny list, quotas, the landing page, the upstream
+  nginx.conf                write allowlist, refused reads, quotas, the landing page, the admin door
 landing/
   index.html                one page, no build step
 scripts/
   reset.sh                  the contract: one command from zero
   lib/sowel-api.sh          login, wait-for-health, the curl wrappers
-  check-deny-list.sh        the core's allowlist vs. what this repo classified
-  deny-list.txt             the classification itself, one route per line
+  check-admin-reads.sh      the core's admin gates vs. what this repo classified
+  write-allowlist.txt       what a visitor may write, one route per line
+  admin-reads.txt           what a visitor may read of the admin paths
 docs/
   operations.md             what to do when it breaks, for a human at 3 a.m.
 ```
@@ -53,6 +54,12 @@ from inside the compose network, so the 403 is demonstrably the proxy's doing an
 not the core's.
 
 ## The deny list, as data
+
+> **Superseded on 2026-09-27** (spec amendment "the guest sees everything and
+> changes nothing"): the guest is an admin; the proxy refuses every write
+> `write-allowlist.txt` does not name and every read `admin-reads.txt` marks
+> `refuse`, and a second server on the loopback is the scripts' admin door. The
+> section below is the phase 2 design, kept for history.
 
 `scripts/deny-list.txt` is the classification, one line per route:
 

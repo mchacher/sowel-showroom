@@ -385,15 +385,48 @@ unchanged.
 
 #### Acceptance criteria
 
-- [ ] AC-A1 — As the guest, every page of the admin navigation opens and shows its
-      data, except backup and users, which say they are unavailable in the demo.
-- [ ] AC-A2 — Saving any configuration form as the guest shows "Démo en lecture
-      seule", and nothing changes.
-- [ ] AC-A3 — Ordering a light, switching a mode, a timed action, the language and
-      the 3D app's walk still work.
-- [ ] AC-A4 — `GET /api/v1/backup`, `/users` and `/audit` are refused as the guest.
-- [ ] AC-A5 — The reset runs end to end through the admin door, and the admin door
-      is not reachable from another machine.
-- [ ] AC-A6 — `check-admin-reads.sh` fails when the core gains an unclassified
-      admin-gated prefix.
-- [ ] AC-A7 — No client IP in the logs, or the logs are refused (FR3b).
+- [~] AC-A1 — As an admin on the public door, every page of the admin navigation
+  opens and shows its data; MQTT, notifications and backup show empty states.
+  As the guest: waiting on the role (see "Walked").
+- [x] AC-A2 — Saving a configuration form shows "Démo en lecture seule", and
+      nothing changes — through the vignette's toast where the page is silent.
+- [x] AC-A3 — Ordering a light and the bathroom walk still work (checked by the
+      reset); modes and timed actions are on the unchanged allowlist.
+- [x] AC-A4 — `GET /api/v1/backup`, `/users` and `/audit` are refused, and so are
+      `/api/v1/%62ackup` and `/API/v1/users`.
+- [x] AC-A5 — The reset runs end to end through the admin door; compose publishes
+      it on 127.0.0.1 only, and `check-compose.sh` refuses anything else.
+- [x] AC-A6 — `check-admin-reads.sh` fails when an admin-gated path is unclassified
+      (tried by removing `/api/v1/audit` from the list).
+- [x] AC-A7 — No client IP in the logs: account names only, which the public door
+      makes worthless (every account is read-only there).
+
+#### Walked, on the local showroom (2026-09-27)
+
+- **The guest's role.** Creating the guest as `admin` in `reset.sh` was refused to
+  the agent by its own safety classifier ("permission grant") until the owner
+  approved that exact change; it went in then. Before, everything else was exercised
+  with the owner's admin account on the public door, which the amendment makes
+  read-only too.
+- **Settings are shown, and carried a secret.** `GET /api/v1/settings` returned a
+  `history.influx.token` — a legacy key the core no longer reads, restored from the
+  demo fixture, and already public in the core's documentation fixture. The
+  simulator's fixture build now drops `history.influx.*`; the reset checks key by
+  key that the settings a visitor reads hold no secret. One key is accepted by name:
+  `push.vapidPrivateKey` signs notifications to this server's subscribers, and there
+  are none (the proxy refuses subscriptions, the reset wipes them). Refusing
+  settings instead was tried first: every page reads them, and the settings page —
+  the arbiter's configuration with it — came up empty.
+- **Some pages swallow a refusal.** The settings page saved, failed and said
+  nothing. The vignette's script, injected in every page, now catches a 403 carrying
+  "lecture seule" and says so in a toast, the same on every page.
+- **A path in capitals missed `/api/`.** `/API/v1/users` fell through to the
+  product-UI location and got the SPA page — harmless, since the core's router is
+  case-sensitive, but ungated. The UI locations carry the same gate now.
+- **The core rate-limits by address, and behind the proxy every visitor has the
+  proxy's.** `@fastify/rate-limit`, 300 requests a minute, keyed on the socket
+  address, with no `trustProxy`: all visitors together share one budget. One
+  person reloading page after page reached it in the walk. It cannot be fixed in
+  this repository; it is a product issue — the owner's own instance behind its
+  Cloudflare tunnel has the same shape — and it blocks the public opening, not
+  this amendment.

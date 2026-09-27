@@ -1,20 +1,22 @@
 #!/usr/bin/env bash
-# Generates `proxy/nginx.conf` from `scripts/deny-list.txt` (spec 001, FR3).
+# Generates `proxy/nginx.conf` from `scripts/write-allowlist.txt` and
+# `scripts/admin-reads.txt` (spec 001, FR3 and FR3b, amended 2026-09-27).
 #
-# The deny list is the data; this is the only thing that turns it into config. Run
-# with `--check` to fail when the committed file has drifted from the data, which
-# is what `npm run validate` does: a deny list and a proxy config that disagree
+# The two lists are the data; this is the only thing that turns them into config.
+# Run with `--check` to fail when the committed file has drifted from the data,
+# which is what `npm run validate` does: a list and a proxy config that disagree
 # would be a security rule that exists only on paper.
 set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
 
-DENY_LIST="scripts/deny-list.txt"
+ALLOWLIST="scripts/write-allowlist.txt"
+READS="scripts/admin-reads.txt"
 OUT="proxy/nginx.conf"
 MODE="${1:-write}"
 
-deny_map_entries() {
-  grep -E '^deny ' "$DENY_LIST" | while read -r _ method matcher route comment; do
+allow_map_entries() {
+  grep -E '^(POST|PUT|PATCH|DELETE) ' "$ALLOWLIST" | while read -r method matcher route comment; do
     reason="${comment#\# }"
     if [ "$matcher" = "=" ]; then
       key="\"$method:$route\""
@@ -27,25 +29,36 @@ deny_map_entries() {
   done
 }
 
+refused_read_entries() {
+  grep -E '^refuse ' "$READS" | while read -r _ prefix comment; do
+    reason="${comment#\# }"
+    # The prefix and anything below it, never a sibling that merely starts the
+    # same way. Case-insensitive, so a case the router would ignore cannot pass.
+    printf '  %-58s 1;  # %s\n' "\"~*^${prefix}(/|\$)\"" "$reason"
+  done
+}
+
 generate() {
   cat <<'HEADER'
 # ============================================================
 # GENERATED — do not edit.
 #
-# Written by `scripts/generate-proxy-conf.sh` from `scripts/deny-list.txt`, which
-# is where the reasons live. Edit that file and re-run; `npm run validate` fails
-# when this one has drifted from it.
+# Written by `scripts/generate-proxy-conf.sh` from `scripts/write-allowlist.txt`
+# and `scripts/admin-reads.txt`, which is where the reasons live. Edit those and
+# re-run; `npm run validate` fails when this one has drifted from them.
 #
 # What this does, in order of how much it matters:
 #
-#   1. Refuses the handful of requests that would end the demo for everyone else
-#      — a password change, an MFA enrolment — even though the core's role gate
-#      allows them for a `standard` user. The guest account is shared, which the
-#      core has no way to know.
+#   1. The guest is an admin, read-only here: every write under /api/ is refused
+#      unless the write allowlist names it, and so are the few reads that are
+#      private (the backup, the users, the audit log). A route the core adds
+#      tomorrow is refused until someone names it.
 #   2. Rate-limits mutations per IP, so a script cannot drive the house.
 #   3. Serves the landing page, and proxies everything else to Sowel.
 #
-# Sowel's port is not published on the host, so this is the only way in.
+# Sowel's port is not published on the host. The public server below is the way
+# in for everyone; the admin server at the end listens on a port published on the
+# loopback only, for the reset's own work.
 # ============================================================
 
 # Only mutations are counted. An empty key is not counted at all by nginx, which
@@ -75,12 +88,35 @@ map $cookie_showroom $root_target {
   "entered" "@app";
 }
 
-# What a visitor may not do. Generated from scripts/deny-list.txt.
-map "$request_method:$uri" $denied {
+# What a visitor may write. Generated from scripts/write-allowlist.txt.
+map "$request_method:$uri" $write_allowed {
   default 0;
 HEADER
-  deny_map_entries
+  allow_map_entries
+  cat <<'MIDDLE'
+}
+
+# What a visitor may not read. Generated from scripts/admin-reads.txt.
+map $uri $read_refused {
+  default 0;
+MIDDLE
+  refused_read_entries
   cat <<'FOOTER'
+}
+
+map $request_method $is_write {
+  default 0;
+  POST    1;
+  PUT     1;
+  PATCH   1;
+  DELETE  1;
+}
+
+# Refused: a write not on the allowlist, or a private read, whatever the method.
+map "$is_write:$write_allowed:$read_refused" $refused {
+  default    1;
+  "0:0:0"    0;
+  "1:1:0"    0;
 }
 
 # `$host` drops the port, and the core's WebSocket allows an Origin when its host
@@ -121,6 +157,12 @@ server {
   }
 
   location @app {
+    # The API is under /api/, but a path the location match treats differently
+    # (`/API/v1/users`) lands here: the same gate, so nothing reaches Sowel ungated.
+    default_type application/json;
+    if ($refused) {
+      return 403 '{"error":"Démo en lecture seule — read-only demo"}';
+    }
     proxy_pass http://sowel;
     proxy_http_version 1.1;
     proxy_set_header Host $http_host;
@@ -215,31 +257,14 @@ server {
     add_header Set-Cookie "showroom=; path=/; max-age=0; samesite=lax" always;
   }
 
-  # --- The restore -------------------------------------------------------
-  # The reset restores the fixture with thirty days of history in it (spec 003):
-  # megabytes, where every other request is a few kilobytes. Only here is the body
-  # allowed to be large, and only as long as the core's restore takes. The core
-  # keeps this route to administrators; the deny map still applies.
-  location = /api/v1/backup {
-    if ($denied) {
-      return 403;
-    }
-    client_max_body_size 64m;
-    proxy_pass http://sowel;
-    proxy_http_version 1.1;
-    proxy_set_header Host $http_host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-    proxy_set_header Connection "";
-    proxy_read_timeout 900s;
-    proxy_send_timeout 900s;
-  }
-
   # --- The API -----------------------------------------------------------
   location /api/ {
-    if ($denied) {
-      return 403;
+    # A read-only demo says so. The product UI shows a failed request's `error`
+    # field as its message, so saving a form reads "Démo en lecture seule" rather
+    # than "HTTP 403".
+    default_type application/json;
+    if ($refused) {
+      return 403 '{"error":"Démo en lecture seule — read-only demo"}';
     }
     # `delay=6` over a burst of 12: the first six actions go straight through, the
     # next six are held back to the sustained rate, and only past that does a
@@ -279,6 +304,12 @@ server {
 
   # --- The product UI ----------------------------------------------------
   location / {
+    # The API is under /api/, but a path the location match treats differently
+    # (`/API/v1/users`) lands here: the same gate, so nothing reaches Sowel ungated.
+    default_type application/json;
+    if ($refused) {
+      return 403 '{"error":"Démo en lecture seule — read-only demo"}';
+    }
     proxy_pass http://sowel;
     proxy_http_version 1.1;
     proxy_set_header Host $http_host;
@@ -296,17 +327,58 @@ server {
     sub_filter '</body>' '<script src="/showroom-ui/mini-house.js"></script></body>';
   }
 }
+
+# ============================================================
+# The admin door (spec 001, FR5, amended 2026-09-27).
+#
+# The public server refuses every write it does not name, which would refuse the
+# reset's own work too: the restore, the guest's creation. This server does not
+# gate: compose publishes its port on 127.0.0.1 only, so it is reachable from the
+# host — the scripts, or the owner through an SSH tunnel — and from nowhere else.
+# No landing page, no vignette, no rate limit: it is Sowel, as it is.
+# ============================================================
+server {
+  listen 8081;
+  server_name _;
+  access_log /var/log/nginx/access.log combined;
+  absolute_redirect off;
+
+  # The restore carries thirty days of history (spec 003): megabytes, and as long
+  # as the core's restore takes.
+  client_max_body_size 64m;
+
+  location /ws {
+    proxy_pass http://sowel;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $http_host;
+    proxy_read_timeout 3600s;
+  }
+
+  location / {
+    proxy_pass http://sowel;
+    proxy_http_version 1.1;
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Connection "";
+    proxy_read_timeout 900s;
+    proxy_send_timeout 900s;
+  }
+}
 FOOTER
 }
 
 if [ "$MODE" = "--check" ]; then
   if ! diff -u "$OUT" <(generate) > /tmp/proxy-conf.diff 2>&1; then
-    echo "❌ $OUT has drifted from $DENY_LIST. Run scripts/generate-proxy-conf.sh:" >&2
+    echo "❌ $OUT has drifted from $ALLOWLIST / $READS. Run scripts/generate-proxy-conf.sh:" >&2
     head -40 /tmp/proxy-conf.diff >&2
     exit 1
   fi
-  echo "✓ $OUT matches $DENY_LIST"
+  echo "✓ $OUT matches $ALLOWLIST and $READS"
 else
   generate > "$OUT"
-  echo "✓ wrote $OUT from $DENY_LIST"
+  echo "✓ wrote $OUT from $ALLOWLIST and $READS"
 fi

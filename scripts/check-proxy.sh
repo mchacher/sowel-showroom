@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Checks the proxy config two ways (spec 001, FR3 and FR7).
 #
-#   1. It matches the deny list it is generated from, so a security rule cannot
+#   1. It matches the lists it is generated from, so a security rule cannot
 #      exist in the data and not in the config, or the reverse.
 #   2. nginx itself accepts it. `--add-host` stubs the upstream, because outside
 #      the compose network `sowel` does not resolve and nginx refuses to start on

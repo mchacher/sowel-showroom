@@ -1,0 +1,25 @@
+# ============================================================
+# What a visitor may write (spec 001, FR3, amended 2026-09-27).
+#
+# The guest is an admin, read-only at the proxy: every POST, PUT, PATCH and
+# DELETE under /api/ is refused unless it is on this list. A route the core adds
+# tomorrow is refused until a line here names it — the list fails closed.
+#
+# Format:  <METHOD>  <=|~>  <route>  # reason
+#
+# `=` is an exact path, `~` an anchored regex, both matched against the decoded,
+# normalised path nginx routes on (`$uri`), so `/api/v1/%6Dodes` is `/api/v1/modes`.
+# `scripts/generate-proxy-conf.sh` turns this file into proxy/nginx.conf.
+# ============================================================
+
+POST    ~ ^/api/v1/equipments/[^/]+/orders/[^/]+$        # act on an equipment: this is the demo, the 3D app's ghost included
+POST    ~ ^/api/v1/zones/[^/]+/orders/[^/]+$             # all lights off, all shutters closed
+POST    ~ ^/api/v1/modes/[^/]+/activate$                 # day / evening / night
+POST    ~ ^/api/v1/modes/[^/]+/deactivate$               # the other half of the same gesture
+POST    ~ ^/api/v1/modes/[^/]+/apply-to-zone/[^/]+$      # a mode on one room
+POST    ~ ^/api/v1/equipments/[^/]+/timed-action$        # "close the gate in five minutes" shows well
+DELETE  ~ ^/api/v1/equipments/[^/]+/timed-action$        # and cancelling it
+PUT     = /api/v1/me/preferences                        # language and theme: reading in English is a feature
+POST    = /api/v1/auth/login                            # the landing page's session
+POST    = /api/v1/auth/refresh                          # keeping it past fifteen minutes
+POST    = /api/v1/auth/logout                           # ending it

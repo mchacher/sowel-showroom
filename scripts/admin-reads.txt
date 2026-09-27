@@ -1,0 +1,29 @@
+# ============================================================
+# What an admin can read, and what a visitor may (spec 001, FR3b and FR7,
+# amended 2026-09-27).
+#
+# The guest is an admin, so every read the core keeps to administrators is open to
+# it unless the proxy refuses it. One line per path prefix:
+#
+#   refuse  — the proxy answers 403 to every method under it;
+#   show    — the visitor reads it, which is the point of the amendment.
+#
+# `check-admin-reads.sh` reads the core's admin-gated paths and fails on one this
+# file does not classify, so a new private read is a decision rather than a leak.
+# A prefix matches itself and anything below it (`/api/v1/users` covers
+# `/api/v1/users/42`, not `/api/v1/usersettings`).
+#
+# Format:  <refuse|show>  <prefix>  # reason
+# ============================================================
+
+refuse  /api/v1/backup                    # the whole database, password hashes included
+refuse  /api/v1/users                     # the owner's account
+refuse  /api/v1/audit                     # each entry stores the actor's IP: one visitor would read the others'
+refuse  /api/v1/me/tokens                 # nothing to list, nothing a visitor needs
+refuse  /api/v1/mqtt-brokers              # broker passwords in clear; none configured, refused so it stays harmless
+refuse  /api/v1/mqtt-publishers           # idem, and their broker's password
+refuse  /api/v1/notification-publishers   # Telegram bot tokens, webhook secrets; none configured
+show    /api/v1/settings                  # every page reads it; no secret in it — verify-showroom.sh checks, key by key
+show    /api/v1/logs                      # the engine at work, pino-redacted; no client IP (checked in the walk)
+show    /api/v1/dashboard/widgets         # the GET is open to everyone already; only writes are admin-gated
+show    /api/v1/energy/pv-forecast        # the backfill is a POST, refused by the write allowlist
