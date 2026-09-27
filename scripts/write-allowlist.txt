@@ -5,20 +5,23 @@
 # DELETE under /api/ is refused unless it is on this list. A route the core adds
 # tomorrow is refused until a line here names it — the list fails closed.
 #
-# Format:  <METHOD>  <=|~>  <route>  # reason
+# Format:  <METHOD>  <=|~>  <route>  [queue]  # reason
+#
+# `queue`: the write is a visitor's action on the house, and goes to the queue service
+# instead of straight to Sowel — one action at a time, shown to every visitor (spec 005).
 #
 # `=` is an exact path, `~` an anchored regex, both matched against the decoded,
 # normalised path nginx routes on (`$uri`), so `/api/v1/%6Dodes` is `/api/v1/modes`.
 # `scripts/generate-proxy-conf.sh` turns this file into proxy/nginx.conf.
 # ============================================================
 
-POST    ~ ^/api/v1/equipments/[^/]+/orders/[^/]+$        # act on an equipment: this is the demo, the 3D app's ghost included
-POST    ~ ^/api/v1/zones/[^/]+/orders/[^/]+$             # all lights off, all shutters closed
-POST    ~ ^/api/v1/modes/[^/]+/activate$                 # day / evening / night
-POST    ~ ^/api/v1/modes/[^/]+/deactivate$               # the other half of the same gesture
-POST    ~ ^/api/v1/modes/[^/]+/apply-to-zone/[^/]+$      # a mode on one room
-POST    ~ ^/api/v1/equipments/[^/]+/timed-action$        # "close the gate in five minutes" shows well
-DELETE  ~ ^/api/v1/equipments/[^/]+/timed-action$        # and cancelling it
+POST    ~ ^/api/v1/equipments/[^/]+/orders/[^/]+$        queue # act on an equipment: this is the demo, the 3D app's ghost included
+POST    ~ ^/api/v1/zones/[^/]+/orders/[^/]+$             queue # all lights off, all shutters closed
+POST    ~ ^/api/v1/modes/[^/]+/activate$                 queue # day / evening / night
+POST    ~ ^/api/v1/modes/[^/]+/deactivate$               queue # the other half of the same gesture
+POST    ~ ^/api/v1/modes/[^/]+/apply-to-zone/[^/]+$      queue # a mode on one room
+POST    ~ ^/api/v1/equipments/[^/]+/timed-action$        queue # "close the gate in five minutes" shows well
+DELETE  ~ ^/api/v1/equipments/[^/]+/timed-action$        queue # and cancelling it
 PUT     = /api/v1/me/preferences                        # language and theme: reading in English is a feature
 POST    = /api/v1/auth/login                            # the landing page's session
 POST    = /api/v1/auth/refresh                          # keeping it past fifteen minutes

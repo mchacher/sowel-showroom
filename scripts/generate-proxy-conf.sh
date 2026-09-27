@@ -17,6 +17,10 @@ MODE="${1:-write}"
 
 allow_map_entries() {
   grep -E '^(POST|PUT|PATCH|DELETE) ' "$ALLOWLIST" | while read -r method matcher route comment; do
+    # `queue` before the reason: the write goes to the queue service rather than to
+    # Sowel (spec 005) — 2 in the map; 1 is a write that goes straight through.
+    value=1
+    case "$comment" in queue*) value=2 && comment="${comment#queue}" && comment="${comment# }" ;; esac
     reason="${comment#\# }"
     if [ "$matcher" = "=" ]; then
       key="\"$method:$route\""
@@ -25,7 +29,7 @@ allow_map_entries() {
       # them, so the leading `^` moves rather than doubling.
       key="\"~^$method:${route#^}\""
     fi
-    printf '  %-58s 1;  # %s\n' "$key" "$reason"
+    printf '  %-58s %s;  # %s\n' "$key" "$value" "$reason"
   done
 }
 
@@ -117,6 +121,17 @@ map "$is_write:$write_allowed:$read_refused" $refused {
   default    1;
   "0:0:0"    0;
   "1:1:0"    0;
+  "1:2:0"    0;
+}
+
+# A visitor's order goes to the queue (spec 005): one action at a time, shown to all.
+map $write_allowed $queued {
+  default 0;
+  2       1;
+}
+
+upstream queue {
+  server queue:8090;
 }
 
 # `$host` drops the port, and the core's WebSocket allows an Origin when its host
@@ -266,6 +281,11 @@ server {
     if ($refused) {
       return 403 '{"error":"Démo en lecture seule — read-only demo"}';
     }
+    # Allowed, and an order: to the queue rather than to Sowel (spec 005).
+    error_page 418 = @queue;
+    if ($queued) {
+      return 418;
+    }
     # `delay=6` over a burst of 12: the first six actions go straight through, the
     # next six are held back to the sustained rate, and only past that does a
     # caller get a 429.
@@ -286,6 +306,30 @@ server {
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header Connection "";
     proxy_read_timeout 60s;
+  }
+
+  # --- The queue (spec 005) ----------------------------------------------
+  # Visitors' orders, sent here by the gate above: the service answers at once with
+  # the order's place in the queue, and forwards it to Sowel when its turn comes.
+  location @queue {
+    proxy_pass http://queue;
+    proxy_http_version 1.1;
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header Connection "";
+  }
+
+  # The queue itself: the window's stream (server-sent events, never buffered, held
+  # open) and its journeys.
+  location /queue/ {
+    proxy_pass http://queue;
+    proxy_http_version 1.1;
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header Connection "";
+    proxy_buffering off;
+    proxy_cache off;
+    proxy_read_timeout 3600s;
   }
 
   # --- The WebSocket -----------------------------------------------------

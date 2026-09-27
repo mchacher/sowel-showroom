@@ -141,7 +141,20 @@ for e in d:
     code=$(api POST "/api/v1/equipments/$lamp/orders/state" '{"value":true}' "$guest")
     [ "${code:0:1}" = "2" ] || fail "the guest cannot order a light (HTTP $code)"
     [ "${code:0:1}" = "2" ] && ok "the guest can order a light"
+    # Through the queue (spec 005): the answer is its place in it, not Sowel's own.
+    if grep -q '"queued"' "$API_BODY"; then
+      ok "the order went through the queue"
+    else
+      fail "the order reached Sowel directly: the proxy does not send visitors' orders to the queue"
+    fi
   fi
+
+  # The queue's stream answers, and says how many are watching.
+  stream=$(curl -sN --max-time 3 -H 'Cookie: showroom_visitor=verify' "${PUBLIC_ORIGIN}/queue/stream" 2>/dev/null | grep -m1 '^data: ' || true)
+  case "$stream" in
+    *'"visitors"'*) ok "the queue's stream answers" ;;
+    *) fail "the queue's stream does not answer (docker compose logs queue)" ;;
+  esac
 
   # And it cannot end the demo: the write gate, exercised rather than asserted.
   code=$(api PUT /api/v1/me/password '{"currentPassword":"x","newPassword":"y"}' "$guest")
