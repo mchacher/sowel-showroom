@@ -102,7 +102,7 @@ From the discussion of 2026-09-27, in the order worth doing:
 
 | #   | Journey                                                                                   | Needs                                                                             |
 | --- | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| P2  | Walk through the house: hall › stairs › bedroom, the lights following                     | the panel moving the ghost on a path                                              |
+| P2  | ✅ increment 2 — Walk through the house: hall › stairs › bedroom, the lights following    | the panel moving the ghost on a path                                              |
 | P3  | Settle in the living room: no light if bright enough, a dimmed one in the evening slot    | nothing — the dimmable recipe does it; explain the threshold                      |
 | P4  | Leave a room: the house goes back to sleep behind you                                     | shorter timeouts in the fixture (living room, kitchen: 10 min)                    |
 | T1  | Walk into child's room 2: the radiator goes to comfort, the temperature climbs            | heater and thermostat absence timeouts shortened (15 min)                         |
@@ -111,3 +111,65 @@ From the discussion of 2026-09-27, in the order worth doing:
 | —   | The showcase: back home on a winter evening — lights, heat pump, consumption, all at once | P2 + T2                                                                           |
 | —   | Too hot: past a threshold, Sowel closes the shutters on the sunny side                    | **a new recipe package, to create**: none reacts to a temperature threshold today |
 | —   | Show the reasoning: each journey links to the recipe's log                                | a way to reach a recipe's log from a link in Sowel's interface                    |
+
+## Amendment — 2026-09-27: increment 2, four journeys and a panel that reads the house
+
+Validated by the owner as the plan's step 2: P2 with T1, P3, the end of P4, and T3.
+The showcase (P2 + T2) and the temperature-threshold recipe stay next.
+
+### FR4 — The panel lists journeys, and shows what to watch, live
+
+The "Essayer" panel becomes a list. Each journey is data: what the visitor does, what
+Sowel does about it, a link to the room in Sowel, and **one live reading** that says
+whether it happened — refreshed every five seconds while that journey is running,
+for a minute, and not otherwise. The core rate-limits every visitor together (showroom
+spec 001, walk of 2026-09-27); a panel polling on its own for everybody would spend
+that budget on nothing.
+
+Two kinds of action:
+
+- **walk** — the figure walks to a room and its ghost follows, as in increment 1;
+- **nudge** — a simulation order through the public API, e.g. `sim.temperature` on a
+  room's probe. Allowed by the proxy like any equipment order.
+
+### FR5 — The journeys of increment 2
+
+| #       | The visitor                      | What Sowel does                                                                                                                                                                                                  | Live reading                                        |
+| ------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| P1      | walks into the bathroom          | unchanged                                                                                                                                                                                                        | the lamp                                            |
+| P2 + T1 | walks to child's room 2          | the hall and stairs lights come on as they pass; the radiator goes to comfort as they enter, and back to eco 30 s after they leave. **From 9:00 to 21:00**: at night the recipe holds eco, and the panel says so | the radiator: comfort or eco, heating or not        |
+| P3 + P4 | settles in the living room       | the wall lights come on only if the room is darker than 2,300 lx, dimmed after 21:00; off 5 s after leaving                                                                                                      | the room's luminosity against the threshold         |
+| T3      | "opens the office window": 15 °C | nothing by recipe — the heat pump's own regulation restarts it, and Sowel shows it running and counts its energy. Said as such: the panel does not claim a recipe                                                | the office's temperature, and the heat pump running |
+
+This needs, in the fixture (simulator specs 001 and 003, amended 2026-09-27): the
+radiators on a pilot wire with their run state bound, the dimmable lights at 5 s, the
+heaters at 30 s. In the 3D (house-3d spec 002, amended the same day): the heat pump's
+fan turning while it runs, the radiators warm on their run state.
+
+### Acceptance criteria (increment 2)
+
+- [x] AC-B1 — Between 9:00 and 21:00, "Y aller" to child's room 2: the hall and stair
+      lamps light on the way, the radiator reads comfort within ten seconds of arrival,
+      and eco within a minute of "Sortir".
+- [x] AC-B2 — Living room: the panel shows the luminosity and whether it is under the
+      threshold; the wall lights follow it; off within fifteen seconds of leaving.
+- [x] AC-B3 — Office: after "Ouvrir la fenêtre", the office reads about 15 °C and the
+      heat pump reads running within twenty seconds; the fan turns in the 3D.
+- [x] AC-B4 — The panel polls only while a journey runs, at most every five seconds.
+
+### Walked, on the local showroom (2026-09-27, 16:30, simulator main)
+
+As the guest, the four journeys in a real browser, reading the panel's live line:
+
+- **Child's room 2**: eco on arrival in the street, **comfort 20 s** after "Y aller"
+  (the walk upstairs), eco again ~45 s after "Sortir" (the walk out, the PIR's 5 s,
+  the recipe's 30 s). It read "comfort · not heating": the room was above its comfort
+  setpoint on a September afternoon. True, and the panel says it; a winter visitor
+  sees the radiator glow.
+- **Living room**: 4,188 lx against 2,300 — "above it: Sowel does not switch on".
+  The daylight case, which is most of a visitor's day; after dark the wall lights
+  come on dimmed.
+- **Office**: 19.7 → **15.0 °C** and the heat pump **running** within 10 s.
+- **Found on the way**: the simulator's radiators took the pilot-wire recipe's
+  "comfort" (relay released) for "off", so walking in cooled the room. Fixed in the
+  simulator (its spec 001, amended), with the run state published for the 3D.

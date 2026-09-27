@@ -49,6 +49,25 @@
       seeInSowel: "Voir dans Sowel",
       readOnly:
         "Démo en lecture seule : tu peux tout regarder, piloter la maison et changer de mode, mais pas modifier la configuration.",
+      openWindow: "Ouvrir la fenêtre",
+      on: "allumée",
+      off: "éteinte",
+      lamp: "Lumière",
+      radiator: "Radiateur",
+      comfort: "confort",
+      eco: "éco",
+      heats: "chauffe",
+      idle: "ne chauffe pas",
+      nightEco: "la nuit (21 h – 9 h), la recette le garde en éco",
+      luminosity: "Luminosité",
+      threshold: "seuil",
+      under: "sous le seuil : Sowel allume",
+      over: "au-dessus : Sowel n'allume pas",
+      office: "Bureau",
+      heatPump: "PAC",
+      running: "en marche",
+      stopped: "à l'arrêt",
+      unknown: "lecture impossible",
     },
     en: {
       title: "3D house",
@@ -63,6 +82,25 @@
       seeInSowel: "See it in Sowel",
       readOnly:
         "Read-only demo: look at everything, drive the house and switch modes, but the configuration stays as it is.",
+      openWindow: "Open the window",
+      on: "on",
+      off: "off",
+      lamp: "Light",
+      radiator: "Radiator",
+      comfort: "comfort",
+      eco: "eco",
+      heats: "heating",
+      idle: "not heating",
+      nightEco: "at night (9 pm – 9 am) the recipe keeps it in eco",
+      luminosity: "Luminosity",
+      threshold: "threshold",
+      under: "under the threshold: Sowel switches on",
+      over: "above it: Sowel does not",
+      office: "Office",
+      heatPump: "Heat pump",
+      running: "running",
+      stopped: "stopped",
+      unknown: "cannot read",
     },
   }[lang];
 
@@ -140,6 +178,8 @@
       color: #fff; font: 500 13px/1.4 Inter, system-ui, sans-serif; box-shadow: 0 10px 30px rgba(20,65,89,.35);
       border-left: 4px solid #f2c035; opacity: 0; pointer-events: none; transition: opacity .2s; }
     #sm-readonly.shown { opacity: 1; }
+    #sm-panel .live { display: none; margin-top: 4px; font: 500 11px/1.4 "JetBrains Mono", ui-monospace, monospace; color: #1a4f6e; }
+    #sm-panel .journey.walking .live { display: block; }
   `;
   document.head.appendChild(style);
 
@@ -182,14 +222,16 @@
       '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 12h14"/></svg>',
   };
 
-  // The guided journeys (spec 004): the visitor walks into a room, a recipe sees
-  // them. Data, so an increment is an entry: the room it walks to and the zone whose
-  // page in Sowel shows what happened. The 3D shows whichever storey the figure is
-  // on as it walks (house-3d spec 005, FR4).
+  // The guided journeys (spec 004, amended 2026-09-27): what the visitor does, what
+  // Sowel does about it, and one live reading that says whether it happened. Data,
+  // so an increment is an entry. `walk` sends the figure to a room (house-3d spec
+  // 005) and its ghost follows; `nudge` is a simulation order through the public
+  // API. `live` names the reading; `readLive` below knows how to take each.
   const JOURNEYS = [
     {
-      room: "salle-de-bain",
+      walk: "salle-de-bain",
       zone: "Salle de Bain",
+      live: { kind: "lamp", name: "Lumière Salle de Bain" },
       fr: {
         what: "Entrer dans la salle de bain",
         why: "Une recette allume la lumière dès qu'elle détecte quelqu'un, de jour comme de nuit.",
@@ -201,6 +243,57 @@
         why: "A recipe switches the light on as soon as it detects someone, day or night.",
         watch:
           "Your figure walks in and up the stairs: each light comes on as it enters the room. That is Sowel's recipes reacting to its presence, not a click on a lamp.",
+      },
+    },
+    {
+      walk: "chambre-enfant-2",
+      zone: "Chambre Enfant 2",
+      live: { kind: "radiator", zone: "Chambre Enfant 2", nightFrom: 21, nightTo: 9 },
+      fr: {
+        what: "Aller dans la chambre d'enfant 2",
+        why: "Les lumières s'allument sur ton passage ; le radiateur passe en confort quand tu entres, et repasse en éco 30 s après ton départ.",
+        watch:
+          "Le radiateur est piloté par une recette de présence : confort quand quelqu'un est là, éco sinon. Dans la 3D, il chauffe quand il rougit.",
+      },
+      en: {
+        what: "Go to child's room 2",
+        why: "Lights come on as you pass; the radiator goes to comfort as you walk in, and back to eco 30 s after you leave.",
+        watch:
+          "A presence recipe drives the radiator: comfort while someone is there, eco otherwise. In the 3D it glows while it heats.",
+      },
+    },
+    {
+      walk: "sejour",
+      zone: "Séjour",
+      live: { kind: "luminosity", zone: "Séjour", threshold: 2300 },
+      fr: {
+        what: "S'installer au séjour",
+        why: "Les appliques ne s'allument que s'il fait trop sombre, tamisées après 21 h, et s'éteignent quand tu pars.",
+        watch:
+          "La recette compare la luminosité de la pièce à un seuil. En plein jour, rien ne s'allume : c'est voulu.",
+      },
+      en: {
+        what: "Settle in the living room",
+        why: "The wall lights come on only when it is too dark, dimmed after 9 pm, and go off when you leave.",
+        watch:
+          "The recipe compares the room's luminosity with a threshold. In broad daylight nothing comes on: that is the point.",
+      },
+    },
+    {
+      nudge: { zone: "Bureau", alias: "sim.temperature", value: 15 },
+      zone: "Bureau",
+      live: { kind: "office", zone: "Bureau", heatPump: "PAC" },
+      fr: {
+        what: "Faire entrer le froid dans le bureau",
+        why: "Le bureau tombe à 15 °C, sous sa consigne : la pompe à chaleur repart. Regarde le ventilateur de l'unité extérieure, côté ouest.",
+        watch:
+          "Ici ce n'est pas une recette : c'est la régulation de la PAC. Sowel la voit repartir, et compte l'énergie qu'elle consomme.",
+      },
+      en: {
+        what: "Let the cold into the office",
+        why: "The office drops to 15 °C, under its setpoint: the heat pump starts again. Watch the outdoor unit's fan, on the west side.",
+        watch:
+          "No recipe here: this is the heat pump's own regulation. Sowel sees it start, and counts the energy it uses.",
       },
     },
   ];
@@ -224,10 +317,15 @@
           <div class="what">${j[lang].what}</div>
           <div class="why">${j[lang].why}</div>
           <div class="actions">
-            <button type="button" data-go="${i}">${T.go}</button>
-            <button type="button" class="secondary" data-leave="${i}">${T.leave}</button>
+            ${
+              j.nudge
+                ? `<button type="button" data-go="${i}">${T.openWindow}</button>`
+                : `<button type="button" data-go="${i}">${T.go}</button>
+                   <button type="button" class="secondary" data-leave="${i}">${T.leave}</button>`
+            }
             <a data-zone="${i}" href="/home" target="_top">${T.seeInSowel}</a>
           </div>
+          <div class="live" data-live="${i}"></div>
           <div class="watch">${j[lang].watch}</div>
         </div>`,
       ).join("")}
@@ -368,6 +466,106 @@
       /* the link stays on the home page */
     }
   };
+  const api = async (path, init = {}) => {
+    const res = await fetch(path, {
+      ...init,
+      headers: {
+        Authorization: `Bearer ${read("sowel_access_token")}`,
+        ...(init.body ? { "Content-Type": "application/json" } : {}),
+      },
+    });
+    if (!res.ok) throw new Error(`${path} → ${res.status}`);
+    return res.json();
+  };
+  const flatZones = async () => {
+    const flat = (zones) => zones.flatMap((z) => [z, ...flat(z.children || [])]);
+    return flat(await api("/api/v1/zones"));
+  };
+  const valueOf = (equipment, alias) =>
+    equipment?.dataBindings.find((b) => b.alias === alias)?.value;
+
+  // A simulation order on the zone's equipment that carries it: the office's probe.
+  const nudge = async ({ zone, alias, value }) => {
+    try {
+      const zoneId = (await flatZones()).find((z) => z.name === zone)?.id;
+      const target = (await api("/api/v1/equipments")).find(
+        (e) => e.zoneId === zoneId && e.orderBindings.some((b) => b.alias === alias),
+      );
+      if (target)
+        await api(`/api/v1/equipments/${target.id}/orders/${encodeURIComponent(alias)}`, {
+          method: "POST",
+          body: JSON.stringify({ value }),
+        });
+    } catch {
+      /* the live reading will say it did not happen */
+    }
+  };
+
+  const readLive = async (live) => {
+    const equipments = await api("/api/v1/equipments");
+    const zones = live.zone ? await flatZones() : [];
+    const zoneId = zones.find((z) => z.name === live.zone)?.id;
+    const inZone = (type) => equipments.find((e) => e.zoneId === zoneId && e.type === type);
+    switch (live.kind) {
+      case "lamp": {
+        const lamp = equipments.find((e) => e.name === live.name);
+        return `${T.lamp} : ${valueOf(lamp, "state") ? T.on : T.off}`;
+      }
+      case "radiator": {
+        const radiator = inZone("heater");
+        if (!radiator) return T.unknown;
+        // A pilot wire: the relay energised is eco, released is comfort.
+        const mode = valueOf(radiator, "state") ? T.eco : T.comfort;
+        const heating = valueOf(radiator, "heating") ? T.heats : T.idle;
+        const hour = new Date().getHours();
+        const night = hour >= live.nightFrom || hour < live.nightTo;
+        return `${T.radiator} : ${mode} · ${heating}${night ? ` — ${T.nightEco}` : ""}`;
+      }
+      case "luminosity": {
+        const aggregation = await api("/api/v1/zones/aggregation");
+        const lux = aggregation[zoneId]?.luminosity;
+        if (typeof lux !== "number") return T.unknown;
+        const n = (v) => Math.round(v).toLocaleString(lang);
+        return `${T.luminosity} : ${n(lux)} lx (${T.threshold} ${n(live.threshold)} lx) — ${lux < live.threshold ? T.under : T.over}`;
+      }
+      case "office": {
+        const probe = equipments.find(
+          (e) => e.zoneId === zoneId && typeof valueOf(e, "temperature") === "number",
+        );
+        const pump = equipments.find((e) => e.name === live.heatPump);
+        const t = valueOf(probe, "temperature");
+        const temperature = typeof t === "number" ? `${t.toFixed(1)} °C` : "–";
+        return `${T.office} : ${temperature} · ${T.heatPump} : ${valueOf(pump, "state") ? T.running : T.stopped}`;
+      }
+    }
+    return "";
+  };
+
+  // One live reading per running journey, every five seconds, for a minute, and
+  // never otherwise: the core rate-limits every visitor together behind the proxy,
+  // and a panel polling on its own would spend that budget on nothing.
+  const followers = new Map();
+  const follow = (i) => {
+    clearInterval(followers.get(i));
+    const out = panel.querySelector(`[data-live="${i}"]`);
+    let ticks = 0;
+    const tick = async () => {
+      ticks += 1;
+      if (ticks > 12 || !panel.isConnected) {
+        clearInterval(followers.get(i));
+        followers.delete(i);
+        return;
+      }
+      try {
+        out.textContent = await readLive(JOURNEYS[i].live);
+      } catch {
+        out.textContent = T.unknown;
+      }
+    };
+    void tick();
+    followers.set(i, setInterval(tick, 5000));
+  };
+
   panel.addEventListener("click", (event) => {
     const go = event.target.closest("[data-go]");
     const leave = event.target.closest("[data-leave]");
@@ -377,10 +575,13 @@
     const line = panel.querySelector(`.journey[data-i="${i}"]`);
     if (go) {
       line.classList.add("walking");
-      tell(`walk=${journey.room}&t=${Date.now()}`);
+      if (journey.walk) tell(`walk=${journey.walk}&t=${Date.now()}`);
+      if (journey.nudge) void nudge(journey.nudge);
+      follow(i);
     } else {
-      line.classList.remove("walking");
       tell(`walk=away&t=${Date.now()}`);
+      // Still read for a while: leaving is half of what there is to watch.
+      follow(i);
     }
   });
   addEventListener("keydown", (event) => {
