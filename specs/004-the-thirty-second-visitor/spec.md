@@ -39,25 +39,37 @@ A button on the vignette's bar opens a small panel of journeys. Each journey is 
 line: what it is, a button that does it, and after the click, what to watch — in
 the 3D, and where in Sowel. Absent while signed out, like the vignette.
 
-### FR2 — The visitor is a ghost
+### FR2 — The visitor is a figure that walks
 
-The panel gives the browser a visitor id (random, kept in `localStorage`) and moves
-that visitor's ghost with the `sim.ghost` order on the house's "Simulation"
-equipment (`<id>:<room>`), through the public API as the guest. Two visitors are two
-ghosts; nobody moves the household.
+The owner: _a character that moves, to make it visual — something like a toy figure,
+but not so much that the brand would object._
+
+The visitor is drawn in the 3D house as a small toy-like figure (house-3d spec 005)
+that **walks**: from the front door, through the plan's doors and up its stairs, to
+the room the journey names. The 3D app, which holds the visitor's session, moves the
+visitor's ghost room by room as the figure enters each one — the `sim.ghost` order on
+the house's "Simulation" equipment, `<visitor id>:<room>`, through the public API.
+So the lights come on along the way, each at the moment the figure walks in, and what
+the visitor sees and what Sowel does never disagree.
+
+The panel starts a walk by setting the frame's anchor (`#walk=salle-de-bain`); the
+visitor id is random, kept in `localStorage` on this origin, shared by the panel and
+the 3D. Two browsers are two figures and two ghosts; nobody moves the household.
+
+Each visitor sees their own figure. Everybody seeing everybody is a next increment
+(below).
 
 ### FR3 — Increment 1: walk into the bathroom
 
-- **"Entrer dans la salle de bain"** places the ghost in the bathroom. The bathroom's
-  motion sensor sees it and the motion-light recipe switches its light on, **whatever
-  the time of day**: no luminosity threshold, not disabled by daylight.
-- The vignette turns to the upper storey, so the bathroom is in view (house-3d, a
-  `level` anchor next to `full`).
-- The panel says: the light is on because a recipe saw you, and links to the
-  bathroom's page in Sowel, where the lamp and the recipe are.
-- **"Sortir"** moves the ghost to the landing — whose own motion light comes on as
-  the visitor passes — and the bathroom light goes off a minute later. Without it,
-  the ghost expires after two minutes and the light follows.
+- **"Entrer dans la salle de bain"**: the vignette turns to the upper storey, the
+  figure appears at the front door and walks to the bathroom — hall, stairs, landing,
+  bathroom — each light coming on as it walks in. In the bathroom, the motion-light
+  recipe switches the lamp on **whatever the time of day**: no luminosity threshold,
+  not disabled by daylight.
+- The panel says: the lights came on because recipes saw you, and links to the
+  bathroom's page in Sowel.
+- **"Sortir"**: the figure walks back down and out of the front door; the lights go
+  off behind it, a minute after it has left each room.
 
 This needs, in the demo fixture (simulator spec 003, amended): a motion sensor in the
 bathroom, and a motion-light instance on it — one-minute timeout, no threshold, not
@@ -65,12 +77,13 @@ disabled by daylight.
 
 ## Acceptance criteria
 
-- As the guest, in daylight and at night: "Entrer dans la salle de bain" lights the
-  bathroom lamp within five seconds, in the vignette and in Sowel.
-- The vignette shows the upper storey after the click.
-- "Sortir": the landing light comes on, the bathroom lamp goes off within ninety
-  seconds.
-- Two browsers are two ghosts: one leaving does not switch the other's light off.
+- As the guest, in daylight and at night: the figure walks from the front door to the
+  bathroom in under twenty seconds, and each light on its way comes on as it enters;
+  the bathroom lamp is on when it arrives, in the vignette and in Sowel.
+- "Sortir": the figure walks out; each light goes off within ninety seconds of it
+  leaving the room.
+- Two browsers are two figures and two ghosts: one leaving does not switch the
+  other's light off.
 
 ## Edge cases
 
