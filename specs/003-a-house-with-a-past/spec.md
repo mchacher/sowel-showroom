@@ -1,6 +1,6 @@
 # Spec 003 — A house with a past
 
-**Status**: 📝 Draft, for review. Prerequisite of phase 5: the demo does not open to
+**Status**: ✅ Implemented — the burn-in week is phase 5's. Prerequisite of phase 5: the demo does not open to
 the public with empty charts.
 
 ## Context

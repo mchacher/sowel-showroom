@@ -114,15 +114,27 @@ fi
 
 # ── 1c. The journals no backup carries (spec 003, FR3) ────────────────────────
 JOURNAL_TABLES=$(grep -v '^#' scripts/lib/journal-tables.txt | grep -v '^$' | tr '\n' ' ')
-rm -f "$JOURNALS"
+# The dump is merged into what a previous run kept and removed only once a reset
+# has succeeded: a reset that fails after the wipe leaves an empty house, and the
+# run after it must not replace the kept journals with that house's nothing.
 step "Keeping the journals"
 if docker compose exec -T sowel test -f /app/data/sowel.db 2>/dev/null; then
   kept=$(docker compose exec -T -e JOURNAL_TABLES="$JOURNAL_TABLES" sowel \
     node - dump /tmp/journals.json <scripts/lib/journals.cjs)
-  docker compose cp sowel:/tmp/journals.json "$JOURNALS" >/dev/null
+  docker compose cp sowel:/tmp/journals.json "$JOURNALS.new" >/dev/null
+  python3 - "$JOURNALS" "$JOURNALS.new" <<'EOF'
+import json, os, sys
+kept, new = sys.argv[1], sys.argv[2]
+merged = json.load(open(kept)) if os.path.exists(kept) else {}
+for table, rows in json.load(open(new)).items():
+    seen = {json.dumps(r, sort_keys=True) for r in merged.get(table, [])}
+    merged.setdefault(table, []).extend(r for r in rows if json.dumps(r, sort_keys=True) not in seen)
+json.dump(merged, open(kept, "w"))
+os.remove(new)
+EOF
   ok "$kept"
 else
-  note "no running instance: nothing to keep"
+  note "no running instance: nothing new to keep"
 fi
 
 # ── 2. Wipe SQLite, keep InfluxDB ─────────────────────────────────────────────
@@ -247,5 +259,6 @@ ok "landing/showroom/config.json (git-ignored: public by design, committed never
 step "Verifying — the six things that can silently be wrong"
 bash scripts/verify-showroom.sh
 
+rm -f "$JOURNALS"
 printf '\n✓ The showroom is ready: %s\n\n' "$PUBLIC_ORIGIN"
 trap - ERR

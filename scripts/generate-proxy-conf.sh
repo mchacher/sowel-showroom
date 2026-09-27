@@ -215,6 +215,27 @@ server {
     add_header Set-Cookie "showroom=; path=/; max-age=0; samesite=lax" always;
   }
 
+  # --- The restore -------------------------------------------------------
+  # The reset restores the fixture with thirty days of history in it (spec 003):
+  # megabytes, where every other request is a few kilobytes. Only here is the body
+  # allowed to be large, and only as long as the core's restore takes. The core
+  # keeps this route to administrators; the deny map still applies.
+  location = /api/v1/backup {
+    if ($denied) {
+      return 403;
+    }
+    client_max_body_size 64m;
+    proxy_pass http://sowel;
+    proxy_http_version 1.1;
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Connection "";
+    proxy_read_timeout 900s;
+    proxy_send_timeout 900s;
+  }
+
   # --- The API -----------------------------------------------------------
   location /api/ {
     if ($denied) {
