@@ -7,9 +7,11 @@
 # production, and run it locally whenever the demo has been poked into a state
 # nobody wants.
 #
-# **It wipes SQLite and keeps InfluxDB.** The house starts fresh; the history
-# accrues from launch day. That is a decision (docs/project-map.md), not an
-# accident of implementation.
+# **It wipes the house and keeps its history** (spec 003). SQLite is wiped and the
+# fixture restored, but InfluxDB stays, the journals no backup carries (the
+# arbiter's week, the activity journal, the recipes' logs) are copied out and put
+# back, and whatever the instance lacks of the last thirty days is computed by the
+# simulator and restored with the fixture. A second run seeds nothing.
 #
 # **It verifies rather than hopes.** Phase 1 came up with twenty-one recipe
 # instances pointing at nothing, because the packages could not be downloaded, and
@@ -36,6 +38,11 @@ set +a
 . scripts/lib/sowel-api.sh
 
 FIXTURE_CACHE=".cache/demo-fr-${SIMULATOR_VERSION}.zip"
+PACKAGE_CACHE=".cache/sowel-plugin-simulator-${SIMULATOR_VERSION}.tar.gz"
+PACKAGE_URL="https://github.com/mchacher/sowel-plugin-simulator/releases/download/v${SIMULATOR_VERSION}/sowel-plugin-simulator-${SIMULATOR_VERSION}.tar.gz"
+SEED_DIR=".cache/seed"
+JOURNALS=".cache/journals.json"
+HISTORY_DAYS=30
 FIXTURE_URL="https://raw.githubusercontent.com/mchacher/sowel-plugin-simulator/v${SIMULATOR_VERSION}/docs/fixtures/demo-fr.zip"
 
 trap 'printf "\n✗ reset failed. The instance is mid-way: run this again, or docker compose logs sowel\n" >&2' ERR
@@ -53,8 +60,73 @@ else
 fi
 ok "$(wc -c <"$FIXTURE_CACHE" | tr -d ' ') bytes"
 
+# ── 1b. The history the instance does not have (spec 003, FR2) ───────────────
+# The earliest energy point InfluxDB holds; the simulator computes the days before
+# it, back to thirty days ago, as a Sowel backup's history files, and they ride in
+# the fixture's zip: the core's own restore writes them. Nothing overwrites a real
+# point — the generator stops where the real history starts.
+RESTORE_ZIP="$FIXTURE_CACHE"
+step "Finding what history the instance lacks"
+docker compose up -d influxdb >/dev/null
+earliest=$(docker compose exec -T influxdb sh -c 'influx query --raw \
+  --org "$DOCKER_INFLUXDB_INIT_ORG" --token "$DOCKER_INFLUXDB_INIT_ADMIN_TOKEN" \
+  "from(bucket: \"${DOCKER_INFLUXDB_INIT_BUCKET}-energy-hourly\") |> range(start: -400d) |> group() |> first() |> keep(columns: [\"_time\"])"' 2>/dev/null |
+  python3 -c 'import sys
+rows = [l.strip().split(",") for l in sys.stdin if l.strip() and not l.startswith("#")]
+if len(rows) > 1 and "_time" in rows[0]: print(rows[1][rows[0].index("_time")])' || true)
+read -r until_iso days < <(python3 - "$earliest" "$HISTORY_DAYS" <<'EOF'
+import sys, math, datetime as dt
+now = dt.datetime.now(dt.timezone.utc)
+earliest = sys.argv[1]
+until = dt.datetime.fromisoformat(earliest.replace("Z", "+00:00")) if earliest else now
+start = now - dt.timedelta(days=int(sys.argv[2]))
+days = math.ceil((until - start).total_seconds() / 86400) if until > start else 0
+print(until.isoformat().replace("+00:00", "Z"), days)
+EOF
+)
+if [ "$days" -le 0 ]; then
+  ok "thirty days already there (since ${earliest:-?}): nothing to seed"
+else
+  note "${earliest:+real history from $earliest; }seeding $days day(s) up to $until_iso"
+  if [ -n "${SIMULATOR_TARBALL:-}" ]; then
+    package="$SIMULATOR_TARBALL"
+  else
+    [ -f "$PACKAGE_CACHE" ] || curl -fsSL "$PACKAGE_URL" -o "$PACKAGE_CACHE" ||
+      die "could not fetch $PACKAGE_URL"
+    package="$PACKAGE_CACHE"
+  fi
+  rm -rf "$SEED_DIR" && mkdir -p "$SEED_DIR/pkg" "$SEED_DIR/out" && chmod 777 "$SEED_DIR/out"
+  tar xzf "$package" -C "$SEED_DIR/pkg"
+  if [ ! -f "$SEED_DIR/pkg/dist/history/cli.js" ]; then
+    note "simulator v${SIMULATOR_VERSION} has no history generator (spec 004): not seeding"
+  else
+    unzip -p "$FIXTURE_CACHE" sowel-backup.json >"$SEED_DIR/sowel-backup.json"
+    # The image's own Node, in a throwaway container: no Node needed on the host.
+    docker compose run --rm --no-deps -v "$PWD/$SEED_DIR:/seed" --entrypoint node sowel \
+      /seed/pkg/dist/history/cli.js --fixture /seed/sowel-backup.json \
+      --until "$until_iso" --days "$days" --out /seed/out
+    cp "$FIXTURE_CACHE" "$SEED_DIR/fixture-with-history.zip"
+    (cd "$SEED_DIR/out" && zip -q -j ../fixture-with-history.zip ./*.lp)
+    RESTORE_ZIP="$SEED_DIR/fixture-with-history.zip"
+    ok "$(wc -c <"$RESTORE_ZIP" | tr -d ' ') bytes of fixture and history"
+  fi
+fi
+
+# ── 1c. The journals no backup carries (spec 003, FR3) ────────────────────────
+JOURNAL_TABLES=$(grep -v '^#' scripts/lib/journal-tables.txt | grep -v '^$' | tr '\n' ' ')
+rm -f "$JOURNALS"
+step "Keeping the journals"
+if docker compose exec -T sowel test -f /app/data/sowel.db 2>/dev/null; then
+  kept=$(docker compose exec -T -e JOURNAL_TABLES="$JOURNAL_TABLES" sowel \
+    node - dump /tmp/journals.json <scripts/lib/journals.cjs)
+  docker compose cp sowel:/tmp/journals.json "$JOURNALS" >/dev/null
+  ok "$kept"
+else
+  note "no running instance: nothing to keep"
+fi
+
 # ── 2. Wipe SQLite, keep InfluxDB ─────────────────────────────────────────────
-step "Wiping the house (SQLite and the plugins), keeping the history (InfluxDB)"
+step "Wiping the house (SQLite and the plugins), keeping the history (InfluxDB, journals)"
 docker compose stop sowel >/dev/null
 # A throwaway container on the same volumes: the image's own shell, no socket, and
 # nothing that outlives the command.
@@ -76,12 +148,20 @@ ok "$ADMIN_USERNAME"
 
 step "Restoring the demo fixture"
 token=$(login "$ADMIN_USERNAME" "$ADMIN_PASSWORD")
-code=$(curl -sS -X POST -o "$API_BODY" -w '%{http_code}' --max-time 120 \
-  -H "Authorization: Bearer $token" -F "file=@${FIXTURE_CACHE}" \
+code=$(curl -sS -X POST -o "$API_BODY" -w '%{http_code}' --max-time 900 \
+  -H "Authorization: Bearer $token" -F "file=@${RESTORE_ZIP}" \
   "${PUBLIC_ORIGIN}/api/v1/backup" 2>/dev/null || echo 000)
 [ "${code:0:1}" = "2" ] || die "restore → HTTP $code
    $(head -c 300 "$API_BODY")"
 ok "restored"
+
+if [ -f "$JOURNALS" ]; then
+  step "Putting the journals back"
+  docker compose cp "$JOURNALS" sowel:/tmp/journals.json >/dev/null
+  loaded=$(docker compose exec -T -e JOURNAL_TABLES="$JOURNAL_TABLES" sowel \
+    node - load /tmp/journals.json <scripts/lib/journals.cjs)
+  ok "$loaded"
+fi
 
 # ── 3b. Packages the instance cannot fetch for itself ─────────────────────────
 # The fixture registers the simulator and ten recipe packages in the `plugins`
