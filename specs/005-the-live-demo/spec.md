@@ -80,7 +80,11 @@ demo:
 ### FR2 — Actions
 
 The strip lists what a visitor can do — the journeys of spec 004: walk into the
-bathroom, go to child's room 2, settle in the living room, open the office window.
+bathroom, go to child's room 2, settle in the living room — and **make a cloud pass**
+(amended 2026-09-27: "open the office window" made no sense to the owner; a cloud by
+day speaks for the solar side: the production drops, the house's sky dims, the solar
+arbiter adapts, and Sowel follows on its live energy page). The cloud is offered by
+day only, and says why at night; it lasts two minutes (simulator spec 002, amended).
 Choosing one **adds it to the queue**; it does not happen at once.
 
 **What a visitor does in Sowel goes to the queue too** (owner, 2026-09-27): switching a

@@ -79,8 +79,9 @@
       bubbleJourney: (who, mine, recipe) =>
         mine ? `${recipe} t'a vu entrer, et a agi.` : `${recipe} a vu ${who} entrer, et a agi.`,
       bubbleOrder: (who, mine, what) => (mine ? `Tu as demandé : ${what}.` : `${who} a demandé : ${what}.`),
-      bubbleCold: (who, mine) =>
-        `${mine ? "Tu as ouvert" : `${who} a ouvert`} la fenêtre : la pompe à chaleur repart d'elle-même.`,
+      bubbleCloud: (who, mine) =>
+        `${mine ? "Tu fais passer" : `${who} fait passer`} un nuage : la production solaire chute, et l'arbitre solaire s'adapte.`,
+      nightOnly: "La nuit, pas de soleil à cacher : reviens de jour.",
     },
     en: {
       title: "3D house",
@@ -115,7 +116,9 @@
       bubbleJourney: (who, mine, recipe) =>
         mine ? `${recipe} saw you walk in, and acted.` : `${recipe} saw ${who} walk in, and acted.`,
       bubbleOrder: (who, mine, what) => (mine ? `You asked to ${what}.` : `${who} asked to ${what}.`),
-      bubbleCold: (who, mine) => `${mine ? "You" : who} opened the window: the heat pump starts on its own.`,
+      bubbleCloud: (who, mine) =>
+        `${mine ? "You make" : `${who} makes`} a cloud pass: solar production drops, and the solar arbiter adapts.`,
+      nightOnly: "At night there is no sun to hide: come back by day.",
     },
   }[lang];
 
@@ -141,11 +144,15 @@
       fr: "S'installer au séjour",
       en: "Settle in the living room",
     },
-    bureau: {
-      zone: "Bureau",
-      nudge: { alias: "sim.temperature", value: 15 },
-      fr: "Ouvrir la fenêtre du bureau",
-      en: "Open the office window",
+    // No walk: a cloud passes over the sun for two minutes (simulator spec 002,
+    // amended). By day only; Sowel follows on its live energy page.
+    nuage: {
+      room: { fr: "Ciel", en: "Sky" },
+      page: "/energy/live",
+      daylight: true,
+      nudge: { alias: "sim.cloud", value: 120 },
+      fr: "Faire passer un nuage",
+      en: "Make a cloud pass",
     },
   };
 
@@ -209,6 +216,7 @@
     #sm-journal .recipe { color: #f2c035; font-weight: 600; }
     #sm-journal .done { color: #a8e4c4; }
     #sm-journal .empty { color: #9fb6c3; }
+    #sm-journal .room { color: #9fb6c3; }
     #sm-grip { position: absolute; left: 0; top: 34px; width: 16px; height: 16px; cursor: nwse-resize; z-index: 2;
       touch-action: none; background: linear-gradient(135deg, rgba(26,79,110,.55) 0 30%, transparent 30%); }
     #sm-strip { flex-shrink: 0; background: #fff; border-top: 1px solid #dde5ea; padding: 10px 12px 12px;
@@ -505,19 +513,32 @@
   };
   const time = (at) =>
     new Date(at).toLocaleTimeString(lang === "fr" ? "fr-FR" : "en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const roomOf = (entry) =>
+    entry.kind === "action"
+      ? entry.what.kind === "journey"
+        ? (JOURNEYS[entry.what.journey]?.room?.[lang] ?? JOURNEYS[entry.what.journey]?.zone ?? null)
+        : entry.what.zoneName ?? null
+      : entry.what.zoneName ?? null;
   const journalLine = (entry) => {
     const line = el("div", { class: "line" });
     line.appendChild(el("time", {}, time(entry.at)));
     const text = el("span");
+    const room = roomOf(entry);
+    if (room) text.appendChild(el("span", { class: "room" }, `${room} · `));
     if (entry.kind === "action") {
-      text.className = entry.mine ? "action mine" : "action";
-      text.textContent = `${entry.mine ? T.mine : entry.who} : ${whatWords(entry.what)}${entry.what.failed ? T.failed : ""}`;
+      text.appendChild(
+        el(
+          "span",
+          { class: entry.mine ? "action mine" : "action" },
+          `${entry.mine ? T.mine : entry.who} : ${whatWords(entry.what)}${entry.what.failed ? T.failed : ""}`,
+        ),
+      );
     } else {
       const item = entry.what;
       const p = item.message?.params ?? {};
       const template = item.message?.template;
       if (template === "motion.detected") {
-        text.textContent = `${p.equipmentName} : ${T.presence}`;
+        text.appendChild(document.createTextNode(`${p.equipmentName} : ${T.presence}`));
       } else if (template === "order.executed") {
         const by = item.source?.recipeName;
         const on = onOff(p.value);
@@ -532,7 +553,7 @@
           );
         }
       } else if (template === "mode.activated" || template === "mode.deactivated") {
-        text.textContent = T.mode(p.modeName ?? p.name ?? "", template === "mode.activated");
+        text.appendChild(document.createTextNode(T.mode(p.modeName ?? p.name ?? "", template === "mode.activated")));
       } else return null;
     }
     line.appendChild(text);
@@ -541,6 +562,17 @@
 
   // ── Following the queue ─────────────────────────────────────────────────────
   let offset = 0; // server clock minus ours
+  // Whether the sun is up, from Sowel: read now and every five minutes, not per render
+  // — the core rate-limits every visitor together behind the proxy.
+  let daylight = null;
+  const readDaylight = async () => {
+    try {
+      daylight = (await api("/api/v1/system/sunlight")).isDaylight === true;
+    } catch {
+      daylight = null;
+    }
+    if (last) renderStrip(last);
+  };
   let whyText = ""; // what the running action shows, in words: under it in the strip
   let last = null;
   let runningKey = null;
@@ -569,7 +601,12 @@
       me.textContent = T.yourTurn(myIndex + 1, wait);
     } else me.textContent = T.choose;
     const pending = myIndex >= 0 || view.running?.mine;
-    for (const button of actionsBox.querySelectorAll("button")) button.disabled = Boolean(pending);
+    for (const button of actionsBox.querySelectorAll("button")) {
+      // A cloud needs a sun to hide: by day only, and the button says why at night.
+      const night = JOURNEYS[button.dataset.journey]?.daylight && daylight === false;
+      button.disabled = Boolean(pending) || night;
+      button.title = night ? T.nightOnly : "";
+    }
     queueList.replaceChildren(
       ...view.waiting.map((w, i) => {
         const li = el("li", { class: w.mine ? "mine" : "" });
@@ -604,7 +641,7 @@
         bubble = T.bubbleJourney(running.who, running.mine, journey.recipe);
       } else {
         if (running.mine) void nudge(journey);
-        bubble = T.bubbleCold(running.who, running.mine);
+        bubble = T.bubbleCloud(running.who, running.mine);
       }
     } else {
       bubble = T.bubbleOrder(running.who, running.mine, whatWords(what));
@@ -620,19 +657,21 @@
         /* no zone: the bubble alone */
       }
     }
-    if (zoneId && location.pathname !== `/home/${zoneId}`) {
-      history.pushState({}, "", `/home/${zoneId}`);
+    const page = running.kind === "journey" ? JOURNEYS[what.journey]?.page : null;
+    const path = page ?? (zoneId ? `/home/${zoneId}` : null);
+    if (path && location.pathname !== path) {
+      history.pushState({}, "", path);
       dispatchEvent(new PopStateEvent("popstate"));
     }
   };
 
-  // The office's cold: a simulated temperature on the room's probe, sent by the
-  // visitor whose slot it is — the queue forwards it at once.
+  // A journey without a walk — the passing cloud: a simulation order on whichever
+  // equipment carries it, sent by the visitor whose slot it is; the queue forwards it
+  // at once.
   const nudge = async (journey) => {
     try {
-      const zoneId = (await zones()).find((z) => z.name === journey.zone)?.id;
-      const target = (await api("/api/v1/equipments")).find(
-        (e) => e.zoneId === zoneId && e.orderBindings.some((b) => b.alias === journey.nudge.alias),
+      const target = (await api("/api/v1/equipments")).find((e) =>
+        e.orderBindings.some((b) => b.alias === journey.nudge.alias),
       );
       if (target)
         await api(`/api/v1/equipments/${target.id}/orders/${encodeURIComponent(journey.nudge.alias)}`, {
@@ -710,6 +749,8 @@
   render();
   place();
   listen();
+  if (signedIn()) void readDaylight();
+  setInterval(() => signedIn() && readDaylight(), 5 * 60_000);
   // The interface logs in and out without reloading the page; follow it.
   setInterval(() => {
     render();

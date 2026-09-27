@@ -41,7 +41,7 @@ test("a journey holds the house for its visitor, who may act during it", async (
   const q = createQueue({ forward: async () => true });
   q.connect("a", 0);
   q.connect("b", 0);
-  q.enqueue("a", "journey", { journey: "bureau" }, 0);
+  q.enqueue("a", "journey", { journey: "nuage" }, 0);
   q.enqueue("b", "order", order("Lampe"), 0, "req-b");
   await q.tick(0);
   assert.equal(q.holds("a"), true);
@@ -82,7 +82,7 @@ test("drops the pending action of a visitor gone for good", async () => {
   q.connect("a", 0);
   q.connect("b", 0);
   q.enqueue("a", "journey", { journey: "sejour" }, 0);
-  q.enqueue("b", "journey", { journey: "bureau" }, 0);
+  q.enqueue("b", "journey", { journey: "nuage" }, 0);
   q.disconnect("b", 0);
   await q.tick(0);
   await q.tick(PRESENCE_MS + 1);

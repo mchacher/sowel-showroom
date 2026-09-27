@@ -88,7 +88,8 @@ function followActivity() {
         // visitor's id — never a thing that happened in the house.
         if (String(params.alias ?? "").startsWith("sim.")) continue;
         if (e?.type === "activity.added" && KEPT.has(e.item?.message?.template)) {
-          queue.activity(e.item);
+          // The room, by name: "Lumière" alone says nothing in a house with twelve.
+          queue.activity({ ...e.item, zoneName: names.zones.get(e.item.zoneId) ?? null });
           broadcast();
         }
       }
@@ -108,16 +109,16 @@ function describe(method, path, body) {
   let m = path.match(/^\/api\/v1\/equipments\/([^/]+)\/orders\/([^/?]+)/);
   if (m) {
     const e = names.equipments.get(m[1]);
-    return { type: "order", equipment: e?.name ?? "un équipement", zoneId: e?.zoneId ?? null, alias: decodeURIComponent(m[2]), value };
+    return { type: "order", equipment: e?.name ?? "un équipement", zoneId: e?.zoneId ?? null, zoneName: names.zones.get(e?.zoneId) ?? null, alias: decodeURIComponent(m[2]), value };
   }
   m = path.match(/^\/api\/v1\/zones\/([^/]+)\/orders\/([^/?]+)/);
-  if (m) return { type: "zone-order", zone: names.zones.get(m[1]) ?? "une pièce", zoneId: m[1], key: m[2], value };
+  if (m) return { type: "zone-order", zone: names.zones.get(m[1]) ?? "une pièce", zoneId: m[1], zoneName: names.zones.get(m[1]) ?? null, key: m[2], value };
   m = path.match(/^\/api\/v1\/modes\/([^/]+)\/(activate|deactivate|apply-to-zone)(?:\/([^/?]+))?/);
   if (m) return { type: "mode", mode: names.modes.get(m[1]) ?? "un mode", action: m[2], zoneId: m[3] ?? null };
   m = path.match(/^\/api\/v1\/equipments\/([^/]+)\/timed-action/);
   if (m) {
     const e = names.equipments.get(m[1]);
-    return { type: "timed-action", equipment: e?.name ?? "un équipement", zoneId: e?.zoneId ?? null, cancel: method === "DELETE" };
+    return { type: "timed-action", equipment: e?.name ?? "un équipement", zoneId: e?.zoneId ?? null, zoneName: names.zones.get(e?.zoneId) ?? null, cancel: method === "DELETE" };
   }
   return { type: "other" };
 }

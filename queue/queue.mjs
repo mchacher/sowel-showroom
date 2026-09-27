@@ -16,7 +16,7 @@ export const JOURNAL_MAX = 100;
  * The journeys a visitor may queue (spec 004): the window knows how to run each;
  * the queue only grants the slot. An id outside this list is refused.
  */
-export const JOURNEYS = ["salle-de-bain", "chambre-enfant-2", "sejour", "bureau"];
+export const JOURNEYS = ["salle-de-bain", "chambre-enfant-2", "sejour", "nuage"];
 
 export function createQueue({ forward }) {
   const visitors = new Map(); // id → { name, lastSeen, streams }
