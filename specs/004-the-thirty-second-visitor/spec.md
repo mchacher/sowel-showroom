@@ -1,6 +1,6 @@
 # Spec 004 — The thirty-second visitor
 
-**Status**: 📝 Draft, for review. First increment: walk into the bathroom.
+**Status**: ✅ Increment 1 implemented — walk into the bathroom. The next increments are listed below.
 
 ## Context
 
