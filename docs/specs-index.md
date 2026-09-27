@@ -10,12 +10,12 @@ phases, and the decisions behind the whole project, are in
 
 Status: 📝 Draft · 🚧 In progress · ✅ Shipped
 
-| #   | Title                     | Status | Summary                                                                                                                                                                                                |
-| --- | ------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 001 | The showroom stack        | ✅     | Phase 2. Compose, the nginx proxy with its derived deny list and quotas, the one-command reset that verifies rather than hopes, and the landing page.                                                  |
-| 002 | The house over Sowel      | ✅     | The 3D house served from the same origin, a vignette over the Sowel interface injected by the proxy, a neutral service worker, and the four bugs only a browser found.                                 |
-| 003 | A house with a past       | ✅     | Thirty days of history seeded through the core's own backup format, the arbiter's journals kept across the nightly reset, and a burn-in week before opening so the arbiter's history is the arbiter's. |
-| 004 | The thirty-second visitor | 🚧     | Guided journeys in the live house, built on recipes reacting to presence and temperature; the visitor acts as a ghost, never on equipments. First increment: walk into the bathroom.                   |
+| #   | Title                     | Status | Summary                                                                                                                                                                                                                  |
+| --- | ------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 001 | The showroom stack        | 🚧     | Phase 2. Compose, the nginx proxy with its derived deny list and quotas, the one-command reset that verifies rather than hopes, and the landing page. Amended 2026-09-27: the guest is an admin, read-only at the proxy. |
+| 002 | The house over Sowel      | ✅     | The 3D house served from the same origin, a vignette over the Sowel interface injected by the proxy, a neutral service worker, and the four bugs only a browser found.                                                   |
+| 003 | A house with a past       | ✅     | Thirty days of history seeded through the core's own backup format, the arbiter's journals kept across the nightly reset, and a burn-in week before opening so the arbiter's history is the arbiter's.                   |
+| 004 | The thirty-second visitor | 🚧     | Guided journeys in the live house, built on recipes reacting to presence and temperature; the visitor acts as a ghost, never on equipments. First increment: walk into the bathroom.                                     |
 
 ## How to use this index after context loss
 
