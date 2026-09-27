@@ -152,15 +152,15 @@ read "Toi".
 
 ## Acceptance criteria
 
-- [ ] AC1 — From the landing page, one click opens Sowel with the house's window open.
-- [ ] AC2 — Two browsers: an action from each runs one after the other; both see the
+- [x] AC1 — From the landing page, one click opens Sowel with the house's window open.
+- [x] AC2 — Two browsers: an action from each runs one after the other; both see the
       queue, both see each action run, and both journals read the same.
-- [ ] AC3 — A lamp switched from its card in Sowel appears in the queue, runs, and stays
+- [x] AC3 — A lamp switched from its card in Sowel appears in the queue, runs, and stays
       in the journal with who did it.
-- [ ] AC4 — A visitor cannot queue a second action while theirs waits.
-- [ ] AC5 — With "Suivre" on, Sowel opens the running action's room and points
+- [x] AC4 — A visitor cannot queue a second action while theirs waits.
+- [x] AC5 — With "Suivre" on, Sowel opens the running action's room and points
       at the recipe that acted; with it off, it stays where the visitor is.
-- [ ] AC6 — Usable on a phone in portrait (390 × 844).
+- [x] AC6 — Usable on a phone in portrait (390 × 844).
 - [ ] AC7 — The core is untouched: the stock image, no plugin but the simulator.
 
 ## Edge cases
