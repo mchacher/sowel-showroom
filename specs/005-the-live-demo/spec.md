@@ -1,9 +1,10 @@
-# Spec 005 — The live demo: Sowel and the house, side by side
+# Spec 005 — The live demo: Sowel, and the house beside it
 
-**Status**: 📝 Draft — the owner chose the direction on 2026-09-27 from three HTML
-mock-ups (a guided tour, Sowel and the house side by side, the house with a journal of
-causes): the second, with the third's journal, and a queue for what visitors do.
-Awaiting validation of this text.
+**Status**: 🚧 Validated by the owner on 2026-09-27, in implementation. The direction
+was chosen from three HTML mock-ups (a guided tour, Sowel and the house side by side,
+the house with a journal of causes): the second, with the third's journal, a queue for
+what visitors do — and the house kept in its **floating window** over Sowel rather than
+docked beside it (owner, the same day).
 
 ## Context
 
@@ -46,35 +47,39 @@ all**, so each action is seen, and seen to be someone's.
 
 ## Functional requirements
 
-### FR1 — One page, two halves
+### FR1 — Sowel, and the house in its floating window
 
-`/demo` is the showroom's page, and the landing page's one button leads there.
+The Sowel interface takes the whole screen, as it ships. Over it, the **floating window
+of spec 004** — moved, resized, reduced to a pill, opened full screen — now holds the
+demo:
 
 ```
-┌────────────────────────────────────────────────────────────────────────────┐
-│ DÉMO EN DIRECT · choisis une action à droite     5 visiteurs · Quitter     │
-├──────────────────────────────────────────┬─────────────────────────────────┤
-│ Sowel — the real interface               │ The house, live (3D)            │
-│  ● Sowel suit l'action en cours [Suivre] │   ┌─────────────────────────┐   │
-│  Salle de bain                           │   │         [3D]            │   │
-│  [Lumière: Allumée]  [Détecteur] [Temp]  │   │ ┌ journal ──────────┐   │   │
-│  Recettes: [Motion Light · a agi]        │   │ │16:32 Motion Light…│   │   │
-│   ╰─ "C'est elle qui a allumé."          │   └─┴───────────────────┴───┘   │
-│                                          │ File d'attente                  │
-│                                          │  EN COURS Visiteur 3 · SdB  12 s│
-│                                          │  2e · toi  Bureau          ~25 s│
-│                                          │ Ajoute une action : [..] [..]   │
-└──────────────────────────────────────────┴─────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ Sowel — the real interface, full screen                                      │
+│  Salle de bain                                                               │
+│  [Lumière: Allumée]  [Détecteur]  [Temp]                                     │
+│  Recettes: [Motion Light · a agi]          ┌──── Maison 3D · 5 visiteurs ──┐ │
+│   ╰─ "Cette recette a vu Visiteur 3…"      │            [3D]               │ │
+│                                            │ ┌ journal ─────────────┐      │ │
+│                                            │ │16:32 Motion Light → …│      │ │
+│                                            │ └──────────────────────┘      │ │
+│                                            ├───────────────────────────────┤ │
+│                                            │ ▶ Visiteur 3 · salle de bain  │ │
+│                                            │   Toi · 2e · ~25 s   [Suivre] │ │
+│                                            │ [SdB] [Chambre] [Séjour] [..] │ │
+│                                            └───────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-- **Left**: the Sowel interface, as it ships, framed from the same origin.
-- **Right**: the 3D house with the journal over it (FR4), the queue (FR3), and the
-  actions to add (FR2).
-- **On a phone**, stacked: the 3D and its journal, the queue, then Sowel.
+- **The 3D**, with the journal over it (FR4).
+- **Below it, a strip** that folds away: the running action, the visitor's own place in
+  the queue, "Suivre", and the actions to add (FR2). Unfolded, the whole queue.
+- **The "Essayer" button and its panel go.**
+- **On a phone**, the window is a bottom sheet: the 3D and the strip, over Sowel.
 
 ### FR2 — Actions
 
-The right half lists what a visitor can do — the journeys of spec 004: walk into the
+The strip lists what a visitor can do — the journeys of spec 004: walk into the
 bathroom, go to child's room 2, settle in the living room, open the office window.
 Choosing one **adds it to the queue**; it does not happen at once.
 
@@ -132,7 +137,7 @@ While an action runs, every visitor's page shows it:
 
 - **the 3D** walks the running visitor's figure, labelled with their name ("Visiteur
   3"): amber when it is the viewer's own, grey otherwise;
-- **Sowel follows**: when an action starts, the left half opens the page of its room
+- **Sowel follows**: when an action starts, the interface opens the page of its room
   and points at what changed — the card, the recipe — with a short bubble ("Cette
   recette a vu Visiteur 3 entrer, et a allumé").
 
@@ -142,27 +147,27 @@ dragged away by someone else's action. Their own action always brings them back.
 ### FR6 — Who is who
 
 A visitor is "Visiteur N", given on arrival and kept for the visit (the id of spec 004,
-now also a cookie, so a click in the Sowel frame carries it). Their own lines and action
+now also a cookie, so a click anywhere in Sowel carries it). Their own lines and action
 read "Toi".
 
 ## Acceptance criteria
 
-- [ ] AC1 — From the landing page, one click opens `/demo` with Sowel and the house.
+- [ ] AC1 — From the landing page, one click opens Sowel with the house's window open.
 - [ ] AC2 — Two browsers: an action from each runs one after the other; both see the
       queue, both see each action run, and both journals read the same.
 - [ ] AC3 — A lamp switched from its card in Sowel appears in the queue, runs, and stays
       in the journal with who did it.
 - [ ] AC4 — A visitor cannot queue a second action while theirs waits.
-- [ ] AC5 — With "Suivre" on, the Sowel half opens the running action's room and points
+- [ ] AC5 — With "Suivre" on, Sowel opens the running action's room and points
       at the recipe that acted; with it off, it stays where the visitor is.
 - [ ] AC6 — Usable on a phone in portrait (390 × 844).
 - [ ] AC7 — The core is untouched: the stock image, no plugin but the simulator.
 
 ## Edge cases
 
-| Case                                             | Behaviour                                                                                           |
-| ------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
-| The queue service is down                        | Actions are refused with a clear message; browsing still works; the reset's checks catch it.        |
-| The visitor holding the running action leaves    | Their walk still completes (the ghost expires on its own); the queue moves on at its time.          |
-| A pointed-at element is not on the page          | The bubble shows at the top of the Sowel half instead: the story holds even if the interface moves. |
-| Night, bright daylight, another visitor's effect | The journal reads what Sowel says; the bubble says why nothing lit ("il fait assez clair").         |
+| Case                                             | Behaviour                                                                                     |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| The queue service is down                        | Actions are refused with a clear message; browsing still works; the reset's checks catch it.  |
+| The visitor holding the running action leaves    | Their walk still completes (the ghost expires on its own); the queue moves on at its time.    |
+| A pointed-at element is not on the page          | The bubble shows at the top of the page instead: the story holds even if the interface moves. |
+| Night, bright daylight, another visitor's effect | The journal reads what Sowel says; the bubble says why nothing lit ("il fait assez clair").   |
