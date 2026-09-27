@@ -250,13 +250,15 @@
       width: auto !important; height: 62vh !important; border-radius: 16px 16px 0 0; }
     #sm-window.sheet #sm-grip { display: none; }
     #sm-window.sheet #sm-bar { cursor: default; }
-    /* Pointing at what changed in Sowel (FR5): an outline and a bubble, drawn over
-       the interface rather than written into it. */
-    #sm-pointer { position: fixed; z-index: 2147482999; pointer-events: none; border-radius: 12px;
-      box-shadow: 0 0 0 3px #f2c035, 0 0 0 9px rgba(242,192,53,.25); transition: opacity .3s; }
-    #sm-bubble { position: fixed; z-index: 2147482999; max-width: 320px; padding: 11px 14px; border-radius: 10px;
-      background: #10283a; color: #fff; font: 500 14px/1.45 Inter, system-ui, sans-serif; pointer-events: none;
-      box-shadow: 0 14px 34px rgba(16,40,58,.3); transition: opacity .3s; }
+    /* Pointing at what changed in Sowel (FR5): a warm wash that pulses twice over
+       the row and goes, drawn over the interface rather than written into it. The
+       first version ringed it in thick amber, with a bubble over Sowel's content:
+       "trop moche" (owner). The words are in the window now, under the action. */
+    #sm-pointer { position: fixed; z-index: 2147482999; pointer-events: none; border-radius: 8px;
+      background: rgba(242,192,53,.18); opacity: 0; }
+    #sm-pointer.pulse { animation: sm-wash 2.6s ease-in-out 1 forwards; }
+    @keyframes sm-wash { 0% { opacity: 0 } 18% { opacity: 1 } 42% { opacity: .35 } 66% { opacity: 1 } 100% { opacity: 0 } }
+    #sm-strip .why { margin-top: -4px; color: #4a5b66; font-size: 12px; line-height: 1.35; }
     #sm-toast { position: fixed; z-index: 2147483002; left: 50%; bottom: 80px; transform: translateX(-50%);
       max-width: min(560px, calc(100vw - 32px)); padding: 10px 16px; border-radius: 10px; background: #1a4f6e;
       color: #fff; font: 500 13px/1.4 Inter, system-ui, sans-serif; box-shadow: 0 10px 30px rgba(20,65,89,.35);
@@ -329,6 +331,7 @@
     </div>
     <div id="sm-strip">
       <div class="row" id="sm-now"></div>
+      <div class="why" id="sm-why" hidden></div>
       <div class="row">
         <span class="me" id="sm-me"></span>
         <button type="button" class="toggle" id="sm-follow" title="${T.followOn}">${T.follow}</button>
@@ -550,6 +553,7 @@
 
   // ── Following the queue ─────────────────────────────────────────────────────
   let offset = 0; // server clock minus ours
+  let whyText = ""; // what the running action shows, in words: under it in the strip
   let last = null;
   let runningKey = null;
 
@@ -565,6 +569,9 @@
     } else {
       now.appendChild(el("span", { class: "now" }, T.idle));
     }
+    const why = $("#sm-why");
+    why.textContent = view.running ? whyText : "";
+    why.hidden = !view.running || !whyText;
     const myIndex = view.waiting.findIndex((w) => w.mine);
     const me = $("#sm-me");
     if (view.running?.mine) me.textContent = T.yourRunning;
@@ -618,6 +625,8 @@
       target = what.equipment ?? what.zone ?? what.mode ?? null;
       bubble = T.bubbleOrder(running.who, running.mine, whatWords(what));
     }
+    whyText = bubble;
+    if (last) renderStrip(last);
     if (!state.follow && !running.mine) return;
     let zoneId = what.zoneId ?? null;
     if (!zoneId && zoneName) {
@@ -631,7 +640,7 @@
       history.pushState({}, "", `/home/${zoneId}`);
       dispatchEvent(new PopStateEvent("popstate"));
     }
-    point(target, bubble);
+    point(target);
   };
 
   // The office's cold: a simulated temperature on the room's probe, sent by the
@@ -654,7 +663,6 @@
 
   // ── Pointing at Sowel ───────────────────────────────────────────────────────
   const pointer = el("div", { id: "sm-pointer" });
-  const bubbleBox = el("div", { id: "sm-bubble", role: "status" });
   let pointTimers = [];
   const findText = (text) => {
     if (!text) return null;
@@ -663,7 +671,7 @@
     while ((node = walker.nextNode())) {
       if (node.textContent.trim() !== text) continue;
       const host = node.parentElement;
-      if (!host || host.closest("#sm-window, #sm-bubble, #sm-toast")) continue;
+      if (!host || host.closest("#sm-window, #sm-toast")) continue;
       // The row or card the text is in, not the text alone: the nearest box wide and
       // tall enough to read as one — the lamp's row, not the whole equipment list.
       let card = host;
@@ -678,40 +686,35 @@
     }
     return null;
   };
-  const point = (target, text) => {
+  const point = (target) => {
     for (const t of pointTimers) clearTimeout(t);
     pointTimers = [];
-    const show = () => {
-      const found = findText(target);
-      if (found) {
-        found.scrollIntoView({ block: "center", behavior: "smooth" });
-        const r = found.getBoundingClientRect();
-        Object.assign(pointer.style, { left: `${r.left - 4}px`, top: `${r.top - 4}px`, width: `${r.width + 8}px`, height: `${r.height + 8}px`, opacity: "1" });
-        if (!pointer.isConnected) document.body.appendChild(pointer);
-        // Beside the window, never under it: it is the one thing the bubble must not hide.
-        const room = win.isConnected && !isPhone() ? win.getBoundingClientRect().left - 340 : innerWidth - 332;
-        Object.assign(bubbleBox.style, {
-          left: `${Math.max(12, Math.min(r.left, room))}px`,
-          top: `${Math.min(innerHeight - 120, r.bottom + 14)}px`,
-          opacity: "1",
-        });
-      } else {
-        pointer.remove();
-        Object.assign(bubbleBox.style, { left: "50%", top: "72px", transform: "translateX(-50%)", opacity: "1" });
-      }
-      if (found) bubbleBox.style.transform = "";
-      bubbleBox.textContent = text;
-      if (!bubbleBox.isConnected) document.body.appendChild(bubbleBox);
-    };
     // The room's page renders after the navigation and fills as its data arrives:
-    // look again for a few seconds, then let the story go.
-    for (const delay of [900, 2200, 4000, 7000]) pointTimers.push(setTimeout(show, delay));
-    pointTimers.push(
-      setTimeout(() => {
-        pointer.style.opacity = "0";
-        bubbleBox.style.opacity = "0";
-      }, 14000),
-    );
+    // look for the row a few times, and wash it once when found.
+    const attempt = () => {
+      const found = findText(target);
+      if (!found) return false;
+      found.scrollIntoView({ block: "center", behavior: "smooth" });
+      pointTimers.push(
+        setTimeout(() => {
+          const r = found.getBoundingClientRect();
+          Object.assign(pointer.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
+          pointer.classList.remove("pulse");
+          if (!pointer.isConnected) document.body.appendChild(pointer);
+          void pointer.offsetWidth;
+          pointer.classList.add("pulse");
+        }, 450),
+      );
+      return true;
+    };
+    let done = false;
+    for (const delay of [900, 2000, 3500, 6000]) {
+      pointTimers.push(
+        setTimeout(() => {
+          if (!done) done = attempt();
+        }, delay),
+      );
+    }
   };
 
   // ── The stream ──────────────────────────────────────────────────────────────
