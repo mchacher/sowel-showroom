@@ -90,6 +90,9 @@ services:
     restart: unless-stopped
     ports:
       - "${PROXY_PORT:-8080}:80"
+      # The admin door (spec 001, FR5, amended 2026-09-27): no write gate, so it is
+      # published on the loopback only. The scripts use it; nothing else can reach it.
+      - "127.0.0.1:${ADMIN_PORT:-8081}:8081"
     volumes:
       - ./proxy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ./landing:/usr/share/nginx/html:ro

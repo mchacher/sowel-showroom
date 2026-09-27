@@ -3,16 +3,21 @@
 #
 # Sourced, never run.
 #
-# **Everything goes through the proxy**, on `$PUBLIC_ORIGIN`. Sowel's own port is
-# not published, so there is no other way in from the host — and that turns out to
-# be a feature rather than a constraint: the reset exercises the same path a
-# visitor uses, so a broken proxy fails the reset instead of waiting for a
-# visitor to find it. None of the reset's calls are on the deny list, and ten
-# mutations are well inside the rate limit.
+# **Everything goes through the proxy.** Sowel's own port is not published. The
+# proxy has two doors (spec 001, amended 2026-09-27):
+#
+#   - the public one, `$PUBLIC_ORIGIN`, where every visitor arrives and every write
+#     not on the allowlist is refused — the default here, so the checks exercise
+#     the path a visitor uses, and a broken proxy fails the reset instead of
+#     waiting for a visitor to find it;
+#   - the admin door, `$ADMIN_ORIGIN`, on the loopback, with no write gate. Prefix a
+#     call with `admin` to use it: `admin api_ok POST /api/v1/users ...`. Only the
+#     reset's own writes need it.
 
 # shellcheck shell=bash
 
 : "${PUBLIC_ORIGIN:?PUBLIC_ORIGIN must be set}"
+ADMIN_ORIGIN="${ADMIN_ORIGIN:-http://127.0.0.1:${ADMIN_PORT:-8081}}"
 
 step() { printf '\n▸ %s\n' "$1"; }
 ok() { printf '  ✓ %s\n' "$1"; }
@@ -31,7 +36,13 @@ api() {
   local args=(-sS -X "$method" -o "$API_BODY" -w '%{http_code}' --max-time 30)
   [ -n "$token" ] && args+=(-H "Authorization: Bearer $token")
   [ -n "$body" ] && args+=(-H "Content-Type: application/json" -d "$body")
-  curl "${args[@]}" "${PUBLIC_ORIGIN}${path}" 2>/dev/null || echo 000
+  curl "${args[@]}" "${API_ORIGIN:-$PUBLIC_ORIGIN}${path}" 2>/dev/null || echo 000
+}
+
+# admin <command...> — runs one api/api_ok/login/wait_for_health call through the
+# admin door. The assignment lasts for that call only.
+admin() {
+  API_ORIGIN="$ADMIN_ORIGIN" "$@"
 }
 
 # api_ok <METHOD> <path> [json-body] [token] — dies unless the status is 2xx.

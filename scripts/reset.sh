@@ -17,7 +17,7 @@
 # instances pointing at nothing, because the packages could not be downloaded, and
 # said so nowhere. Six checks at the end, and a non-zero exit naming the one that
 # failed — including logging in as the guest, ordering a light, and being refused a
-# password change, which is the deny list tested rather than asserted.
+# password change, which is the write gate tested rather than asserted.
 set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
@@ -148,21 +148,21 @@ ok "wiped"
 
 step "Starting Sowel"
 docker compose up -d sowel >/dev/null
-wait_for_health
+admin wait_for_health
 ok "healthy"
 
 # ── 3. The admin, then the fixture ────────────────────────────────────────────
 step "Creating the administrator"
-api_ok POST /api/v1/auth/setup "$(json_body \
+admin api_ok POST /api/v1/auth/setup "$(json_body \
     "username=$ADMIN_USERNAME" "password=$ADMIN_PASSWORD" \
     "displayName=${ADMIN_DISPLAY_NAME:-Showroom Admin}")"
 ok "$ADMIN_USERNAME"
 
 step "Restoring the demo fixture"
-token=$(login "$ADMIN_USERNAME" "$ADMIN_PASSWORD")
+token=$(admin login "$ADMIN_USERNAME" "$ADMIN_PASSWORD")
 code=$(curl -sS -X POST -o "$API_BODY" -w '%{http_code}' --max-time 900 \
   -H "Authorization: Bearer $token" -F "file=@${RESTORE_ZIP}" \
-  "${PUBLIC_ORIGIN}/api/v1/backup" 2>/dev/null || echo 000)
+  "${ADMIN_ORIGIN}/api/v1/backup" 2>/dev/null || echo 000)
 [ "${code:0:1}" = "2" ] || die "restore → HTTP $code
    $(head -c 300 "$API_BODY")"
 ok "restored"
@@ -229,19 +229,19 @@ fi
 # the core's contract for a backup, not a quirk of this script.
 step "Restarting after the restore"
 docker compose restart sowel >/dev/null
-wait_for_health
+admin wait_for_health
 ok "healthy"
 
 step "Creating the administrator again (the restore replaced the users table)"
-api_ok POST /api/v1/auth/setup "$(json_body \
+admin api_ok POST /api/v1/auth/setup "$(json_body \
     "username=$ADMIN_USERNAME" "password=$ADMIN_PASSWORD" \
     "displayName=${ADMIN_DISPLAY_NAME:-Showroom Admin}")"
-token=$(login "$ADMIN_USERNAME" "$ADMIN_PASSWORD")
+token=$(admin login "$ADMIN_USERNAME" "$ADMIN_PASSWORD")
 ok "$ADMIN_USERNAME"
 
 # ── 4. The guest ──────────────────────────────────────────────────────────────
 step "Creating the guest every visitor is"
-api_ok POST /api/v1/users "$(json_body \
+admin api_ok POST /api/v1/users "$(json_body \
     "username=$GUEST_USERNAME" "password=$GUEST_PASSWORD" \
     "displayName=${GUEST_DISPLAY_NAME:-Visiteur}" "role=standard")" "$token"
 ok "$GUEST_USERNAME (standard)"

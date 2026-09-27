@@ -4,7 +4,7 @@ Guidance for Claude Code (and any AI agent) working on `sowel-showroom`. First f
 
 ## What this is
 
-**Infrastructure only** for the public Sowel demo: the compose stack, the reverse proxy (guest login, deny list, quotas), the nightly reset, the demo fixture, the hosting notes, and the project map that ties the three repositories together.
+**Infrastructure only** for the public Sowel demo: the compose stack, the reverse proxy (guest login, read-only write allowlist, quotas, admin door), the nightly reset, the demo fixture, the hosting notes, and the project map that ties the three repositories together.
 
 | Repository               | Nature       |
 | ------------------------ | ------------ |

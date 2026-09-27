@@ -14,7 +14,7 @@
 #                  because the packages could not be downloaded, and said so nowhere
 #   arbiter        three energy profiles restored as three nulls, because the core
 #                  reads its column list from the first row (mchacher/sowel#939)
-#   the guest      a deny list asserted in a config file and never exercised is a
+#   the guest      a write gate asserted in a config file and never exercised is a
 #                  comment
 #   framing        the vignette frames the 3D app inside Sowel: the 3D must be
 #                  framable by this origin and no other, and Sowel itself by none
@@ -143,7 +143,7 @@ for e in d:
     [ "${code:0:1}" = "2" ] && ok "the guest can order a light"
   fi
 
-  # And it cannot end the demo: the deny list, exercised rather than asserted.
+  # And it cannot end the demo: the write gate, exercised rather than asserted.
   code=$(api PUT /api/v1/me/password '{"currentPassword":"x","newPassword":"y"}' "$guest")
   [ "$code" = "403" ] || fail "the proxy let the guest reach its own password (HTTP $code, expected 403)"
   [ "$code" = "403" ] && ok "the guest is refused its own password (403 at the proxy)"
@@ -152,14 +152,71 @@ for e in d:
   [ "$code" = "403" ] || fail "the proxy let the guest enrol MFA (HTTP $code, expected 403)"
   [ "$code" = "403" ] && ok "the guest is refused MFA enrolment"
 
-  # The neighbouring route must still reach Sowel, or the deny list is too blunt —
-  # `PUT /me` is denied and `PUT /me/preferences` is kept, one path apart. What is
+  # The neighbouring route must still reach Sowel, or the gate is too blunt —
+  # `PUT /me` is refused and `PUT /me/preferences` is kept, one path apart. What is
   # under test is the proxy, not the endpoint's schema, so anything other than 403
   # passes: a 400 means Sowel answered, which is the whole question.
   code=$(api PUT /api/v1/me/preferences '{"preferences":{"language":"en"}}' "$guest")
-  [ "$code" != "403" ] || fail "the deny list also caught /me/preferences, one path away"
+  [ "$code" != "403" ] || fail "the write gate also caught /me/preferences, one path away"
   [ "$code" != "403" ] && ok "/me/preferences still reaches Sowel (HTTP $code)"
+
+  # ── the read-only demo (spec 001, amended 2026-09-27) ──────────────────────
+  # The guest is an admin, so it sees every screen; the proxy is what keeps it
+  # from changing anything. A 403 from the proxy says so in its body, which is
+  # how a refusal by the proxy is told apart from one by the core.
+  by_proxy() { [ "$1" = "403" ] && grep -q "lecture seule" "$API_BODY"; }
+
+  api GET /api/v1/me "" "$guest" >/dev/null
+  role=$(json role)
+  [ "$role" = "admin" ] || fail "the guest is '$role', not admin: a visitor sees half the product (spec 001, FR2)"
+  [ "$role" = "admin" ] && ok "the guest is an admin, read-only at the proxy"
+
+  # A configuration write, refused by the proxy rather than by the core. An empty
+  # zone is harmless even if it did get through: Sowel refuses it as invalid.
+  code=$(api POST /api/v1/zones '{}' "$guest")
+  by_proxy "$code" || fail "a configuration write reached Sowel (HTTP $code): the write allowlist is not applied"
+  by_proxy "$code" && ok "a configuration write is refused: \"Démo en lecture seule\""
+
+  # The private reads, including one spelled the way that once slipped past the
+  # core's own gate (%62 is b), and one in capitals.
+  for path in /api/v1/backup /api/v1/users /api/v1/audit /api/v1/%62ackup /API/v1/users; do
+    code=$(api GET "$path" "" "$guest")
+    by_proxy "$code" || fail "the guest can read $path (HTTP $code)"
+  done
+  ok "backup, users and audit are refused, however spelled"
+
+  # And what the amendment is for: the admin screens are readable.
+  shown=yes
+  for path in /api/v1/settings /api/v1/integrations /api/v1/logs; do
+    code=$(api GET "$path" "" "$guest")
+    [ "${code:0:1}" = "2" ] || { shown=no; fail "the guest cannot read $path (HTTP $code)"; }
+  done
+  [ "$shown" = yes ] && ok "settings, integrations and logs are readable"
+
+  # Settings are shown, so they must hold no secret (found in the walk: the
+  # fixture carried a legacy InfluxDB token the core no longer reads). One key is
+  # accepted by name: the push VAPID private key signs notifications to this
+  # server's subscribers, and there are none — the proxy refuses subscriptions and
+  # the reset wipes them.
+  api GET /api/v1/settings "" "$guest" >/dev/null
+  leaked=$(python3 -c "
+import json, re
+accepted = {'push.vapidPrivateKey'}
+d = json.load(open('$API_BODY'))
+print(' '.join(k for k, v in sorted(d.items())
+               if k not in accepted and v and re.search(r'token|secret|password|private|apikey|api_key', k, re.I)))
+")
+  [ -z "$leaked" ] || fail "the settings a visitor reads carry secrets: $leaked"
+  [ -z "$leaked" ] && ok "the settings a visitor reads carry no secret"
 fi
+
+# The admin door has no write gate: it must answer on the loopback and nowhere else.
+door=$(docker compose port proxy 8081 2>/dev/null || true)
+case "$door" in
+  127.0.0.1:*) ok "the admin door is on the loopback only ($door)" ;;
+  "") fail "the admin door is not published: the reset cannot write" ;;
+  *) fail "the admin door is published on $door, beyond the loopback" ;;
+esac
 
 # ── framing ───────────────────────────────────────────────────────────────────
 # The vignette puts the 3D app in an iframe inside the Sowel UI. That needs the 3D

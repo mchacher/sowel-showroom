@@ -26,14 +26,14 @@ answer perfectly while the house behind it does nothing.
 
 Every check exists because something was once quietly broken:
 
-| Check                                      | What it caught                                                                                                                                                       |
-| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| integrations connected                     | the plugin can fail to load and the instance still answers 200                                                                                                       |
-| devices present and online                 | a fixture can restore with bindings pointing at nothing                                                                                                              |
-| equipments online and bound                | an equipment with no binding reads `offline` and looks like a hardware fault                                                                                         |
-| **recipe definitions loaded**              | twenty-one instances against zero definitions — the house answering when clicked and automating nothing                                                              |
-| arbiter enabled with loads                 | three energy profiles restored as three nulls, because the core reads its column list from the first row ([sowel#939](https://github.com/mchacher/sowel/issues/939)) |
-| the guest can act, and cannot end the demo | a deny list asserted in a config file and never exercised is a comment                                                                                               |
+| Check                                      | What it caught                                                                                                                                                                                                                                                      |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| integrations connected                     | the plugin can fail to load and the instance still answers 200                                                                                                                                                                                                      |
+| devices present and online                 | a fixture can restore with bindings pointing at nothing                                                                                                                                                                                                             |
+| equipments online and bound                | an equipment with no binding reads `offline` and looks like a hardware fault                                                                                                                                                                                        |
+| **recipe definitions loaded**              | twenty-one instances against zero definitions — the house answering when clicked and automating nothing                                                                                                                                                             |
+| arbiter enabled with loads                 | three energy profiles restored as three nulls, because the core reads its column list from the first row ([sowel#939](https://github.com/mchacher/sowel/issues/939))                                                                                                |
+| the guest can act, and cannot end the demo | a write gate asserted in a config file and never exercised is a comment; since 2026-09-27 also: the guest is an admin, a configuration write and the private reads are refused by the proxy, the admin screens are readable, the admin door is on the loopback only |
 
 One line is a note rather than a check: **the production meter is offline at
 night.** The simulated inverter goes offline after sunset instead of reporting
@@ -82,15 +82,25 @@ extracted packages and re-run the reset; it refuses to side-load nothing.
 **A visitor reports a 429.** Working as intended: a sequential visitor is never
 refused, only briefly slowed. A 429 means something was firing in parallel.
 
-**A visitor can do something they should not.** `scripts/deny-list.txt` is the
-classification and `proxy/nginx.conf` is generated from it. Add a line, run
-`scripts/generate-proxy-conf.sh`, `docker compose restart proxy`. Then add the case
-to `scripts/verify-showroom.sh`, because the rule you do not exercise is the rule
-that comes back.
+**The demo is read-only, and that is on purpose** (spec 001, amended 2026-09-27).
+The guest is an admin: it sees every screen. The public door refuses every write
+`scripts/write-allowlist.txt` does not name, and every read
+`scripts/admin-reads.txt` marks `refuse`, with "Démo en lecture seule".
+`proxy/nginx.conf` is generated from both.
 
-**The core's role gate grew a route.** `npm run validate` fails, naming it. That is
-`check-deny-list.sh` reading `STANDARD_WRITE_ALLOWLIST` out of the core: a new
-thing a visitor can do is a decision, not a discovery.
+**A visitor can do something they should not, or cannot do something they should.**
+Edit the list, run `scripts/generate-proxy-conf.sh`, `docker compose restart proxy`.
+Then add the case to `scripts/verify-showroom.sh`, because the rule you do not
+exercise is the rule that comes back.
+
+**The core gained an admin-only path.** `npm run validate` fails, naming it. That is
+`check-admin-reads.sh` reading the core's admin gates: a new private read is a
+decision, not a leak. Writes need no such check — a new one is refused until named.
+
+**Administering the demo by hand.** The public door is read-only for everyone, the
+owner included. The admin door listens on `127.0.0.1:${ADMIN_PORT:-8081}` on the
+host: locally, or `ssh -L 8081:127.0.0.1:8081 <host>` from elsewhere. The scripts
+already use it for their writes.
 
 ## Rolling the core back
 

@@ -14,6 +14,12 @@ for f in docker-compose*.yml compose*.yml; do
     echo "❌ $f mounts the Docker socket — never in the showroom." >&2
     exit 1
   fi
+  # The admin door has no write gate: published anywhere but the loopback, it
+  # would be the whole product, writable, for anyone who finds the port.
+  if grep -E '^\s*-\s*"?[^"#]*:8081"?\s*$' "$f" | grep -vqE '^\s*-\s*"?127\.0\.0\.1:'; then
+    echo "❌ $f publishes the admin door (8081) beyond 127.0.0.1." >&2
+    exit 1
+  fi
   if command -v docker >/dev/null 2>&1; then
     docker compose -f "$f" config --quiet
     echo "✓ $f"
