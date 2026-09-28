@@ -110,6 +110,29 @@ read -r n_rec n_enabled n_def missing <<<"$rec"
 { [ "$n_enabled" -ge 1 ] && [ "$missing" = "-" ] && [ "$n_def" -ge 1 ]; } &&
   ok "$n_enabled of $n_rec instance(s) enabled, all $n_def definition(s) loaded"
 
+# A definition loaded is not an instance started: the pool recipe once refused its
+# own parameters at start ("Surplus heating requires a water temperature sensor"),
+# and every check above still passed. The core exposes no instance status; its log
+# does — the newest line of a failed start is an error.
+ids=$(python3 -c "
+import json
+print(' '.join(i['id'] for i in json.load(open('$API_BODY')) if i.get('enabled')))
+")
+broken=""
+for id in $ids; do
+  api_ok GET "/api/v1/recipe-instances/$id/log?limit=1" "" "$token" >/dev/null
+  bad=$(python3 -c "
+import json
+d = json.load(open('$API_BODY'))
+entries = d if isinstance(d, list) else d.get('entries', d.get('items', []))
+e = entries[0] if entries else {}
+print('yes' if e.get('level') == 'error' and 'Failed' in str(e.get('message', '')) else 'no')
+")
+  [ "$bad" = yes ] && broken="$broken $id"
+done
+[ -z "$broken" ] || fail "recipe instance(s) failed to start:$broken (their log says why)"
+[ -z "$broken" ] && ok "every enabled recipe instance started"
+
 # ── the arbiter ───────────────────────────────────────────────────────────────
 api_ok GET /api/v1/energy/arbiter "" "$token"
 arb=$(python3 -c "
