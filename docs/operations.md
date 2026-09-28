@@ -97,6 +97,14 @@ exercise is the rule that comes back.
 `check-admin-reads.sh` reading the core's admin gates: a new private read is a
 decision, not a leak. Writes need no such check — a new one is refused until named.
 
+**What visitors do goes through a queue** (spec 005). The `queue` service — one file,
+`queue/server.mjs`, no dependency — takes every visitor order the proxy marks `queue`
+in `scripts/write-allowlist.txt`, runs them one at a time, and streams the queue and
+the journal to every floating window. It holds everything in memory: a restart empties
+the queue and the journal, nothing else. `docker compose logs queue` says whether its
+feed from Sowel is connected; `verify-showroom.sh` checks that an order is queued and
+that the stream answers.
+
 **Administering the demo by hand.** The public door is read-only for everyone, the
 owner included. The admin door listens on `127.0.0.1:${ADMIN_PORT:-8081}` on the
 host: locally, or `ssh -L 8081:127.0.0.1:8081 <host>` from elsewhere. The scripts

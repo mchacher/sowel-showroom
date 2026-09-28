@@ -102,11 +102,36 @@ services:
       - ${HOUSE_3D_DIST:-../sowel-house-3d/dist}:/usr/share/nginx/house3d:ro
     depends_on:
       - sowel
+      - queue
     logging:
       driver: json-file
       options:
         max-size: "10m"
         max-file: "5"
+
+  # The queue of what visitors do (spec 005): one action at a time, shown to all, and
+  # the journal's feed from Sowel. One file, no dependency, nothing published: the
+  # proxy is the only way to it. It logs in as the guest, whose password is public by
+  # design (spec 001, FR2).
+  queue:
+    image: node:24-alpine
+    container_name: showroom-queue
+    restart: unless-stopped
+    working_dir: /app
+    command: ["node", "server.mjs"]
+    volumes:
+      - ./queue:/app:ro
+    environment:
+      - SOWEL_URL=http://sowel:3000
+      - GUEST_USERNAME=${GUEST_USERNAME:?}
+      - GUEST_PASSWORD=${GUEST_PASSWORD:?}
+    depends_on:
+      - sowel
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   # Wiped by the reset: the house starts fresh every night.

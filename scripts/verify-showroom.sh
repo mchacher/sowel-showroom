@@ -110,6 +110,29 @@ read -r n_rec n_enabled n_def missing <<<"$rec"
 { [ "$n_enabled" -ge 1 ] && [ "$missing" = "-" ] && [ "$n_def" -ge 1 ]; } &&
   ok "$n_enabled of $n_rec instance(s) enabled, all $n_def definition(s) loaded"
 
+# A definition loaded is not an instance started: the pool recipe once refused its
+# own parameters at start ("Surplus heating requires a water temperature sensor"),
+# and every check above still passed. The core exposes no instance status; its log
+# does — the newest line of a failed start is an error.
+ids=$(python3 -c "
+import json
+print(' '.join(i['id'] for i in json.load(open('$API_BODY')) if i.get('enabled')))
+")
+broken=""
+for id in $ids; do
+  api_ok GET "/api/v1/recipe-instances/$id/log?limit=1" "" "$token" >/dev/null
+  bad=$(python3 -c "
+import json
+d = json.load(open('$API_BODY'))
+entries = d if isinstance(d, list) else d.get('entries', d.get('items', []))
+e = entries[0] if entries else {}
+print('yes' if e.get('level') == 'error' and 'Failed' in str(e.get('message', '')) else 'no')
+")
+  [ "$bad" = yes ] && broken="$broken $id"
+done
+[ -z "$broken" ] || fail "recipe instance(s) failed to start:$broken (their log says why)"
+[ -z "$broken" ] && ok "every enabled recipe instance started"
+
 # ── the arbiter ───────────────────────────────────────────────────────────────
 api_ok GET /api/v1/energy/arbiter "" "$token"
 arb=$(python3 -c "
@@ -141,7 +164,20 @@ for e in d:
     code=$(api POST "/api/v1/equipments/$lamp/orders/state" '{"value":true}' "$guest")
     [ "${code:0:1}" = "2" ] || fail "the guest cannot order a light (HTTP $code)"
     [ "${code:0:1}" = "2" ] && ok "the guest can order a light"
+    # Through the queue (spec 005): the answer is its place in it, not Sowel's own.
+    if grep -q '"queued"' "$API_BODY"; then
+      ok "the order went through the queue"
+    else
+      fail "the order reached Sowel directly: the proxy does not send visitors' orders to the queue"
+    fi
   fi
+
+  # The queue's stream answers, and says how many are watching.
+  stream=$(curl -sN --max-time 3 -H 'Cookie: showroom_visitor=verify' "${PUBLIC_ORIGIN}/queue/stream" 2>/dev/null | grep -m1 '^data: ' || true)
+  case "$stream" in
+    *'"visitors"'*) ok "the queue's stream answers" ;;
+    *) fail "the queue's stream does not answer (docker compose logs queue)" ;;
+  esac
 
   # And it cannot end the demo: the write gate, exercised rather than asserted.
   code=$(api PUT /api/v1/me/password '{"currentPassword":"x","newPassword":"y"}' "$guest")
